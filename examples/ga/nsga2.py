@@ -18,6 +18,12 @@ import random
 import json
 
 import numpy
+import matplotlib
+
+import matplotlib.pyplot as plt
+print(matplotlib.backends.backend)
+matplotlib.rcParams['backend'] = "Qt4Agg"
+print(matplotlib.backends.backend)
 
 from math import sqrt
 
@@ -131,12 +137,13 @@ if __name__ == "__main__":
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
     
-    # import matplotlib.pyplot as plt
-    # import numpy
-    # 
-    # front = numpy.array([ind.fitness.values for ind in pop])
-    # optimal_front = numpy.array(optimal_front)
-    # plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
-    # plt.scatter(front[:,0], front[:,1], c="b")
-    # plt.axis("tight")
-    # plt.show()
+
+    front = numpy.array([ind.fitness.values for ind in pop])
+    optimal_front = numpy.array(optimal_front)
+    plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
+    print(front)
+    plt.scatter(front[:,0], front[:,1], c="b")
+    plt.axis("tight")
+    #plt.savefig('C:\ExportDir\test1.png')
+    plt.savefig('C:\\ExportDir\\out.pdf', transparent=True, bbox_inches='tight', pad_inches=0)
+    #plt.show()
