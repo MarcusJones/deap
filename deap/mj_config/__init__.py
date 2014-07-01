@@ -1,5 +1,3 @@
 '''
-Created on 01.07.2014
-
-@author: jon
+A seperate config file created for this project
 '''

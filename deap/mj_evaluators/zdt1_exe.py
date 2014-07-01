@@ -16,7 +16,7 @@ Etc.
 from __future__ import division
 from __future__ import print_function
 
-from mj_config import *
+from config import *
 
 import logging.config
 import unittest
