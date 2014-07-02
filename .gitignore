@@ -12,3 +12,4 @@ MANIFEST
 *.orig
 .DS_Store
 *.so
+/.project
