@@ -7,6 +7,7 @@ from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import defaultdict
 
+import logging
 ######################################
 # Non-Dominated Sorting   (NSGA-II)  #
 ######################################
@@ -156,6 +157,9 @@ def selTournamentDCD(individuals, k):
     :param k: The number of individuals to select.
     :returns: A list of selected individuals.
     """
+    
+    assert len(individuals) % 4 == 0, "This selection MUST operate on population multiples of 4!"
+    
     def tourn(ind1, ind2):
         if ind1.fitness.dominates(ind2.fitness):
             return ind1

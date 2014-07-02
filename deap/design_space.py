@@ -155,7 +155,7 @@ def evaluate_population(population, engine):
 #--- Objects
 
 class Mapping(object):
-    def __init__(self, design_space, objective_space, individual, evaluator):
+    def __init__(self, design_space, objective_space):
         self.design_space = design_space
         self.objective_space = objective_space
         #self.individual = individual
@@ -166,10 +166,17 @@ class Mapping(object):
         
 
     def __str__(self):
-        return "Function {} maps dimension {} domain to dimension {} range".format(self.evaluator.__name__, self.design_space.dimension,
+        return "Mapping dimension {} domain to dimension {} range".format(self.design_space.dimension,
                                                                   self.objective_space.dimension)
 
+    
+    def assign_individual(self, Individual):
+        self.Individual = Individual
+        logging.info("This mapping will produce {} individuals".format(Individual.__name__))
 
+    def assign_fitness(self, fitness):
+        self.fitness = fitness
+        logging.info("This mapping will produce {} fitness".format(fitness.__name__))
     
     # Generating points in the space-------------
     def get_random_mapping(self):
@@ -187,10 +194,7 @@ class Mapping(object):
             indices.append(var.index)
             labels.append(var.name)
     
-        #print(self.design_space.basis_set[0])
-        #raise
-        
-        thisIndiv = self.individual(labels,chromosome,indices, self.evaluator, None)
+        thisIndiv = self.Individual(items=chromosome, names=labels, indices=indices, fitness=self.fitness())
         
         return thisIndiv
 
@@ -547,11 +551,13 @@ class DesignSpace(object):
         return len(self.basis_set)
 
 class Individual2(list):
-    def __init__(self, items, names=None, fitness=None):
+    def __init__(self, items, names, indices, fitness=None, fitness_names = None):
         if not names:
             names = [str(i) for i in range(len(items))]
         assert len(items) == len(names)
         self.names = names
+        self.fitness = fitness
+        self.fitness_names = fitness_names
         super(Individual2, self).__init__(items)
         
     def __hash__(self):
@@ -560,7 +566,7 @@ class Individual2(list):
         But this would be expensive and complicated to store in a database
         The hash compresses this information to an integer value which should have no collisions
         """
-        return hash(tuple(zip(self.labels,self.chromosome)))
+        return hash(tuple(zip(self.names,self[:])))
     
     def __str__(self):
         pairs = zip(self.names, self)

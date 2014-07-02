@@ -17,12 +17,23 @@ import array
 import random
 import json
 
+import logging.config
+from deap.mj_config.deapconfig import *
+import logging
+#===============================================================================
+# Logging
+#===============================================================================
+logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
+myLogger = logging.getLogger()
+myLogger.setLevel("DEBUG")
+
+
 import numpy
 import matplotlib
 
 import matplotlib.pyplot as plt
 print(matplotlib.backends.backend)
-matplotlib.rcParams['backend'] = "Qt4Agg"
+matplotlib.rcParams['backend'] = "TkAgg"
 print(matplotlib.backends.backend)
 
 from math import sqrt
@@ -103,6 +114,8 @@ def main(seed=None):
         offspring = [toolbox.clone(ind) for ind in offspring]
         
         for ind1, ind2 in zip(offspring[::2], offspring[1::2]):
+            #logging.debug("Operators over {} and {}".format(ind1, ind1))
+            
             if random.random() <= CXPB:
                 toolbox.mate(ind1, ind2)
             
@@ -141,9 +154,10 @@ if __name__ == "__main__":
     front = numpy.array([ind.fitness.values for ind in pop])
     optimal_front = numpy.array(optimal_front)
     plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
-    print(front)
+    #print(front)
     plt.scatter(front[:,0], front[:,1], c="b")
     plt.axis("tight")
     #plt.savefig('C:\ExportDir\test1.png')
+    plt.show()
     plt.savefig('C:\\ExportDir\\out.pdf', transparent=True, bbox_inches='tight', pad_inches=0)
-    #plt.show()
+    

@@ -264,8 +264,8 @@ class Fitness(object):
 
 
 class FitnessMJ(Fitness):
-    def __init__(self, names, values=()):
-        self.names = names
+    def __init__(self, values=()):
+        #self.names = names
         super(FitnessMJ, self).__init__(values)
 
     def __str__(self):
