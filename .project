@@ -3,6 +3,7 @@
 	<name>deap1</name>
 	<comment></comment>
 	<projects>
+		<project>MyUtilities</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
