@@ -262,3 +262,12 @@ class Fitness(object):
         return "%s.%s(%r)" % (self.__module__, self.__class__.__name__,
             self.values if self.valid else tuple())
 
+
+class FitnessMJ(Fitness):
+    def __init__(self, names, values=()):
+        self.names = names
+        super(FitnessMJ, self).__init__(values)
+
+    def __str__(self):
+        """Return the values of the Fitness object."""
+        return str(self.names) + str(self.values if self.valid else tuple())  

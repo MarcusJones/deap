@@ -24,6 +24,7 @@ programming, evolution strategies, particle swarm optimizers, and many more.
 import array
 import copy
 import warnings
+import logging
 
 class_replacers = {}
 """Some classes in Python's standard library as well as third party library
@@ -156,7 +157,11 @@ def create(name, base, **kargs):
             setattr(self, obj_name, obj())
         if base.__init__ is not object.__init__:
             base.__init__(self, *args, **kargs)
-
+            
     objtype = type(str(name), (base,), dict_cls)
     objtype.__init__ = initType
     globals()[name] = objtype
+    
+    logging.debug(
+    "Class named '{}' inherits from '{}' with extra attributes: {}".format(name, base.__name__, kargs)
+                      )

@@ -21,14 +21,12 @@ from config import *
 import logging.config
 import unittest
 
-from utility_inspect import whoami, whosdaddy, listObject
-
 #===============================================================================
 # Code
 #===============================================================================
-def evaluate():
+def evaluate(individual):
     """Return the something to the something."""
-    pass
+    print("dfslkj")
 
 #===============================================================================
 # Main
