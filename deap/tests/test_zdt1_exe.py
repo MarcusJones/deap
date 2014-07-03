@@ -48,7 +48,6 @@ class test1(unittest.TestCase):
         
     def test010_(self):
         print("**** TEST {} ****".format(whoami()))
-        #print "**** TEST {} ****".format(whoami())
         NDIM = 30
         BOUND_LOW, BOUND_UP = 0.0, 1.0
         BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0' 
