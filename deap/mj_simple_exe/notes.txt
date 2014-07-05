@@ -1,0 +1,16 @@
+pyinstaller <name.py> --onefile --out=<dir>
+
+Detect?
+def resource_path(relative):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative)
+    return os.path.join(relative)
+
+http://irwinkwan.com/tag/pyinstaller/
+
+
+Using py2exe (OLD)
+
+To compile:
+CD into folder
+python setup.py py2exe
