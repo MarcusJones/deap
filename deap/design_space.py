@@ -239,6 +239,15 @@ class Mapping(object):
         raise
         pass
 
+# USE THIS
+def getNewTable( db, table ):
+    class NewTable( DB_Base ):
+        __tablename__ = table
+        __table_args__ = { 'schema': db }
+        id = Column( ...
+
+    return NewTable
+
 
 class ValueBase(object):
     def __init__(self,value):
