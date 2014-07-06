@@ -30,7 +30,7 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 #from math import sqrt
-
+import utility_SQL_alchemy as util_sa
 #--- Import design space
 from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace
 from deap.design_space import Individual2
@@ -67,7 +67,7 @@ def main(seed=None):
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
     logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
-    DB_Base.metadata.create_all(engine)
+
 
     NDIM = 3
     BOUND_LOW, BOUND_UP = 0.0, 1.0
@@ -85,7 +85,11 @@ def main(seed=None):
     basis_set = [Variable.from_range(name, BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
     myLogger.setLevel("DEBUG")
     # Add variables to DB
+
+    DB_Base.metadata.create_all(engine)
     session.add_all(basis_set)
+
+
 
     # Create DSpace
     thisDspace = DesignSpace(basis_set)
@@ -96,10 +100,15 @@ def main(seed=None):
     objective_goals = ('Max', 'Min')
     this_obj_space = ObjectiveSpace(objective_names, objective_goals)
     mapping = Mapping(thisDspace, this_obj_space)
+    #print(mapping.design_space.basis_set[0].variable_tuple[0].__table__)
+    #raise
     #print(session.dirty)
     #print(session.new)
-    session.commit()
 
+    session.commit()
+    util_sa.print_all_pretty_tables(engine, 20)
+    #print(DB_Base.metadata.tables.keys())
+    raise
 
 
     # Statistics and logging
