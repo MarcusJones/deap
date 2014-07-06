@@ -74,15 +74,15 @@ def generate_chromosome(basis_set):
 
     return zip(variable_names,variable_indices,variableValues)
 
-#--- 
+#---
 
 def evaluate_population(population, engine):
-    """Given a list of individuals, evaluate only those which are 
+    """Given a list of individuals, evaluate only those which are
     1. Unique
     2. Not already existing in database
     """
     logging.info("Evaluating {} individuals, typical: {}".format(len(population),population[0]))
-    
+
     unique_pop = list(set(population))
     logging.info("Of these {} individuals, {} are unique".format(len(population),len(unique_pop)))
 
@@ -94,40 +94,40 @@ def evaluate_population(population, engine):
     #util_sa.print_all_pretty_tables(engine)
     results_table =  metadata.tables['results']
     objectives_table = metadata.tables['objectives']
-    
+
     # Get objective names
     #objectives_table.fetchall()
     objective_names = util_sa.get_rows(engine,objectives_table)
     objective_names = [row[1] for row in objective_names]
     #logging.info("Objectives: {}".format(objective_names))
-    
+
     objective_columns = [results_table.c[obj_name] for obj_name in objective_names]
-    
+
     # Here the population is filtered into 2:
     # 1. The already-evaluated list
     evaluated_pop = list()
-    # 2. The pending list 
+    # 2. The pending list
     pending_pop = list()
-    
+
     # DO for all in population
     while unique_pop:
         indiv = unique_pop.pop()
-        
+
         # First, go into the results table and select this individual
         qry = results_table.select(results_table.c.hash ==  indiv.__hash__())
         res = engine.execute(qry).fetchall()
-        
-        
+
+
         if not res:
             # This is a new individual, needs evaluation
             pending_pop.append(indiv)
-            
+
         else:
             # This individual has already been evaluated
             # This should return exactly one row
             assert(len(res) == 1)
             row = res[0]
-            
+
             # Select and assign the fitness rows for this individual
             objectives = [row[col] for col in objective_columns]
             indiv.fitness = zip(objective_names,objectives)
@@ -135,27 +135,27 @@ def evaluate_population(population, engine):
             evaluated_pop.append(indiv)
 
     logging.info("Of these {} unique individuals, {} are new, {} are existing".format(len(pending_pop)+len(evaluated_pop), len(pending_pop),len(evaluated_pop)))
-    
+
     # Run all the pending individuals, append onto evaluated_pop
     for indiv in pending_pop:
         indiv = indiv.evaluate()
         evaluated_pop.append(indiv)
-    
+
     # Now re-expand the population including clones
     final_pop = list()
     for indiv in population:
         # This individual MUST have been evaluated now, either newly or existing
         assert(indiv in evaluated_pop)
-        
+
         # Get this individual from the evaluated set
         index = evaluated_pop.index(indiv)
         final_pop.append(evaluated_pop[index])
-    
+
     # Return this generation back for addition into DB
     # add_population_db also checks first for duplicates before adding them to results
     # The generation number will be automatically added based on last gen number
     return final_pop
-       
+
 #--- Objects
 
 class Mapping(object):
@@ -164,16 +164,16 @@ class Mapping(object):
         self.objective_space = objective_space
         #self.individual = individual
         #self.evaluator = evaluator
-        
+
         logging.info(self)
     #, generating {} instances
-        
+
 
     def __str__(self):
         return "Mapping dimension {} domain to dimension {} range".format(self.design_space.dimension,
                                                                   self.objective_space.dimension)
 
-    
+
     def assign_individual(self, Individual):
         self.Individual = Individual
         logging.info("This mapping will produce {} individuals".format(Individual.__name__))
@@ -181,14 +181,14 @@ class Mapping(object):
     def assign_fitness(self, fitness):
         self.fitness = fitness
         logging.info("This mapping will produce {} fitness".format(fitness.__name__))
-    
+
     # Generating points in the space-------------
     def get_random_mapping(self):
         """
         Randomly sample all basis_set vectors, return a random variable vector
         """
         #[var.get_random() for var in  self.design_space.basis_set]
-        
+
         chromosome = list()
         indices = list()
         labels = list()
@@ -197,15 +197,15 @@ class Mapping(object):
             chromosome.append(var.value)
             indices.append(var.index)
             labels.append(var.name)
-    
+
         thisIndiv = self.Individual(items=chromosome, names=labels, indices=indices, fitness=self.fitness())
-        
+
         return thisIndiv
 
     def get_random_population(self,pop_size):
         """Call get_random_mapping n times to generate a list of individuals
         """
-        
+
         indiv_list = list()
         for idx in range(pop_size):
             indiv_list.append(self.get_random_mapping())
@@ -222,7 +222,7 @@ class Mapping(object):
             tuple_set.append(variable.variable_tuple)
             names.append(variable.name)
             indices.append(None)
-            
+
         run_list = list()
         for vector in itertools.product(*tuple_set):
             #print(vector)
@@ -232,47 +232,52 @@ class Mapping(object):
         #raise
         log_string = "Retrieved {} individuals over {}-dimension design space".format(len(run_list),self.design_space.dimension)
         logging.info(log_string)
-        
+
         return run_list
 
     def getHyperCorners(self):
         raise
         pass
 
-# USE THIS
-def getNewTable( db, table ):
-    class NewTable( DB_Base ):
-        __tablename__ = table
-        __table_args__ = { 'schema': db }
-        id = Column( ...
 
+# USE THIS
+def get_value_class(name ):
+    class NewTable( DB_Base ):
+        __tablename__ = name
+        #__table_args__ = { 'schema': db }
+        id = Column(Integer, primary_key=True)
+        value = Column(String)
+        def __init__(self,value):
+            self.value = value
+
+    NewTable.__name__ = name
     return NewTable
 
+#
+# class ValueBase(object):
+#     def __init__(self,value):
+#         self.value = value
+#
+#     def __repr__(self):
+#         return("{}".format(self.value))
+#
+#
+# def create_var_values_table(name):
+#     this_table_class_def={'__tablename__':name, 'id' : sa.Column(sa.Integer, primary_key=True), 'value' : sa.Column(sa.Float)}
+#     #MyObj=type(name,(DB_Base),this_table_class_def)
+#     MyObj=type(name,(DB_Base),this_table_class_def)
+#           #type('FooBar', (Foo), {})
+#
+#     def __init__(self,value):
+#         self.value = value
+#
+#     MyObj.__init__ = classmethod(__init__)
+#     #setattr(MyObj, '__init__', classmethod())
+#
+#     #MyObj.__init__ = __init__
+#     return MyObj
 
-class ValueBase(object):
-    def __init__(self,value):
-        self.value = value
-        
-    def __repr__(self):
-        return("{}".format(self.value))
-    
-    
-def create_var_values_table(name):
-    this_table_class_def={'__tablename__':name, 'id' : sa.Column(sa.Integer, primary_key=True), 'value' : sa.Column(sa.Float)}
-    #MyObj=type(name,(DB_Base),this_table_class_def)
-    MyObj=type(name,(DB_Base),this_table_class_def)
-          #type('FooBar', (Foo), {})
 
-    def __init__(self,value):
-        self.value = value
-       
-    MyObj.__init__ = classmethod(__init__)
-    #setattr(MyObj, '__init__', classmethod())
-    
-    #MyObj.__init__ = __init__
-    return MyObj
-    
-    
 class Variable(DB_Base):
     """
     A general variable object, inherited by specific types
@@ -305,7 +310,7 @@ class Variable(DB_Base):
             variable_tuple = (variable_tuple,)
         else:
             raise Exception("Need a list, int, float, or tuple")
-        
+
         try:
             len(variable_tuple)
         except:
@@ -313,23 +318,29 @@ class Variable(DB_Base):
             raise
 
         self.name = name
-        
+
         # Convert the variable tuple to the database
-        # Create the class which holds the 
-        
+        # Create the class which holds the
+
         #print(variable_tuple)
-        
-        ValueClass = create_var_values_table(name)
+
+        ValueClass = get_value_class(name)
+
+
         #print(ValueClass)
         #print(dir(ValueClass))
         #print(ValueClass.__init__)
-        this_val = ValueClass(1)
+        #this_val = ValueClass(1)
+        #print(this_val)
+        #print(this_val.value)
+        #raise
         #print(this_val)
         #print)
 
         variable_class_tuple = [ValueClass(val) for val in variable_tuple]
+
         self.variable_tuple = variable_class_tuple
-        
+
         self.ordered = ordered
 
         self.value_type = type(self.variable_tuple[0])
@@ -353,7 +364,7 @@ class Variable(DB_Base):
             not (isinstance(resolution,str) or isinstance(resolution,unicode) ) or
             not (isinstance(upper,str)or isinstance(upper,unicode) ) ):
             raise TypeError("""Expect all numbers as strings,
-            i.e. "0.01" with quotes. This is to ensure decimal precision.\n 
+            i.e. "0.01" with quotes. This is to ensure decimal precision.\n
             You input: {} - {} - {} Var: {}
             Types: {}, {}, {}
             """.format(lower, resolution, upper, name , type(lower), type(resolution), type(upper)))
@@ -523,27 +534,27 @@ class Variable(DB_Base):
 
 
 class ObjectiveSpace(object):
-    
+
     def __init__(self, objective_names, objective_goals):
         assert not isinstance(objective_names, basestring)
-        assert not isinstance(objective_goals, basestring)        
+        assert not isinstance(objective_goals, basestring)
         assert(type(objective_names) == list or type(objective_names) == tuple)
         assert(type(objective_goals) == list or type(objective_names) == tuple)
         assert(len(objective_names) == len(objective_goals))
         for obj in objective_names:
             assert obj not in  ["hash", "start", "finish"]
-        
+
         for goal in objective_goals:
             assert(goal == "Min" or goal == "Max")
 
         self.objective_names = objective_names
         self.objective_goals = objective_goals
         logging.debug("Created {}".format(self))
-        
+
     # Information about the space -------------
     def __str__(self):
         return "ObjectiveSpace: {} Dimensions : {}".format(self.dimension,zip(self.objective_names,self.objective_goals))
-    
+
     @property
     def dimension(self):
         return len(self.objective_names)
@@ -616,7 +627,7 @@ class Individual2(list):
         self.fitness = fitness
         self.fitness_names = fitness_names
         super(Individual2, self).__init__(items)
-        
+
     def __hash__(self):
         """This defines the uniqueness of the individual
         The ID of an individual could be, for example, the string composed of the variable vectors
@@ -624,14 +635,14 @@ class Individual2(list):
         The hash compresses this information to an integer value which should have no collisions
         """
         return hash(tuple(zip(self.names,self[:])))
-    
+
     def __str__(self):
         pairs = zip(self.names, self)
         str_pairs = (["{}={}".format(pair[0],pair[1]) for pair in pairs])
         this_str = ", ".join(str_pairs)
-        
+
         return(this_str)
-    
+
 
 
 
@@ -641,10 +652,10 @@ class Individual(object):
     chromosome
     labels
     indices
-    
+
 
     fitness
-    
+
 
 
     The logic of the variable is stored in the design space basis vectors
@@ -656,19 +667,19 @@ class Individual(object):
         self.indices = indices
         self.evaluator = evaluator
         self.fitness = fitness
-        
+
     @property
     def evaluated(self):
         if not self.fitness: return False
         else: return True
-        
+
     def __str__(self):
 
         name_val_tuple = zip(self.labels, self.chromosome)
-        
+
         these_pairs = ["{} = {}".format(*this_pair) for this_pair in name_val_tuple]
         thisStr = ", ".join(these_pairs)
-        
+
         if self.fitness:
             thisStr = thisStr + " -> " + ", ".join(["{}={}".format(fit[0],fit[1]) for fit in self.fitness])
         else:
@@ -688,7 +699,7 @@ class Individual(object):
         But this would be expensive and complicated to store in a database
         The hash compresses this information to an integer value which should have no collisions
         """
-        
+
         return hash(tuple(zip(self.labels,self.chromosome)))
 
     def __getitem__(self,index):
