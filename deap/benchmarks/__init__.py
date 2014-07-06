@@ -414,7 +414,24 @@ def mj_zdt1_decimal(individual):
     :math:`f_{\\text{ZDT1}2}(\\mathbf{x}) = g(\\mathbf{x})\\left[1 - \\sqrt{\\frac{x_1}{g(\\mathbf{x})}}\\right]`
     """
     values = individual[:]
-    values = [float(val) for val in values]
+    
+    #val = values[0]
+    #print(val)
+    #print(type(val))
+    #print(type(val.value))
+    
+    #raise
+    #print(values)
+    try:
+        values = [float(val.value) for val in values]
+    except AttributeError:
+        pass
+    #values = [float(str(val.value)) for val in values]
+    #print(values)
+    #print(type(values[0]))
+    #print(type(values[0].value))
+    #print(float(values[0].value))
+    #raise
     individual[:] = values
     #print(individual)
     #raise

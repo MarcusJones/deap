@@ -1,41 +1,39 @@
 #===============================================================================
 # Set up
 #===============================================================================
-# Standard:
+#--- Import settings
 from __future__ import division
 from __future__ import print_function
 
-from deap.mj_config.deapconfig import *
-
-import logging.config
+from utility_inspect import whoami, whosdaddy, listObject
 import unittest
+from deap.mj_config.deapconfig import *
+import logging.config
 
+logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
+myLogger = logging.getLogger()
+myLogger.setLevel("DEBUG")
+
+#--- Import other
 import numpy as np
 import json
+import matplotlib.pyplot as plt
 
-from utility_inspect import whoami, whosdaddy, listObject
 
+#--- Import design space
 from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace
 from deap.design_space import Individual2
 
+#--- Import deap
 import random
 from deap.mj_evaluators.zdt1_exe import evaluate
 import array
-#from deap import algorithms
 from deap import base
 from deap import benchmarks
 from deap.benchmarks.tools import diversity, convergence
 from deap import creator
 from deap import tools
 
-import matplotlib.pyplot as plt
-
-#===============================================================================
-# Logging
-#===============================================================================
-logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-myLogger = logging.getLogger()
-myLogger.setLevel("DEBUG")
 
 #===============================================================================
 # Unit testing
@@ -169,4 +167,5 @@ class test1(unittest.TestCase):
         plt.savefig('C:\\ExportDir\\out.pdf', transparent=True, bbox_inches='tight', pad_inches=0)
         #plt.show()
         
-        
+
+#             

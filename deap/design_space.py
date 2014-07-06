@@ -39,7 +39,8 @@ import utility_SQL_alchemy as util_sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 
-Base = declarative_base()
+
+from deap.mj_utilities.db_base import DB_Base
 
 #===============================================================================
 # Logging
@@ -238,13 +239,32 @@ class Mapping(object):
         raise
         pass
 
-def create_VarRowTable(name,values):
-    this_table_class_def={'__tablename__':name,id : sa.Column(sa.Integer, primary_key=True), 'value' : sa.Column(sa.String)}
-    MyObj=type(name,(Base,),this_table_class_def)
+
+class ValueBase(object):
+    def __init__(self,value):
+        self.value = value
+        
+    def __repr__(self):
+        return("{}".format(self.value))
+    
+    
+def create_var_values_table(name):
+    this_table_class_def={'__tablename__':name, 'id' : sa.Column(sa.Integer, primary_key=True), 'value' : sa.Column(sa.Float)}
+    #MyObj=type(name,(DB_Base),this_table_class_def)
+    MyObj=type(name,(DB_Base),this_table_class_def)
+          #type('FooBar', (Foo), {})
+
+    def __init__(self,value):
+        self.value = value
+       
+    MyObj.__init__ = classmethod(__init__)
+    #setattr(MyObj, '__init__', classmethod())
+    
+    #MyObj.__init__ = __init__
     return MyObj
     
     
-class Variable(Base):
+class Variable(DB_Base):
     """
     A general variable object, inherited by specific types
 
@@ -276,7 +296,7 @@ class Variable(Base):
             variable_tuple = (variable_tuple,)
         else:
             raise Exception("Need a list, int, float, or tuple")
-
+        
         try:
             len(variable_tuple)
         except:
@@ -284,7 +304,23 @@ class Variable(Base):
             raise
 
         self.name = name
-        self.variable_tuple = variable_tuple
+        
+        # Convert the variable tuple to the database
+        # Create the class which holds the 
+        
+        #print(variable_tuple)
+        
+        ValueClass = create_var_values_table(name)
+        #print(ValueClass)
+        #print(dir(ValueClass))
+        #print(ValueClass.__init__)
+        this_val = ValueClass(1)
+        #print(this_val)
+        #print)
+
+        variable_class_tuple = [ValueClass(val) for val in variable_tuple]
+        self.variable_tuple = variable_class_tuple
+        
         self.ordered = ordered
 
         self.value_type = type(self.variable_tuple[0])
