@@ -13,3 +13,4 @@ MANIFEST
 .DS_Store
 *.so
 /.project
+/.settings
