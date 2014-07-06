@@ -30,13 +30,16 @@ import sys
 import imp
 
 # External library
-import sqlalchemy as sa
-from sqlalchemy.engine import reflection
 import numpy as np
 
 
 # Utilites
+import sqlalchemy as sa
 import utility_SQL_alchemy as util_sa
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String
+
+Base = declarative_base()
 
 #===============================================================================
 # Logging
@@ -234,8 +237,14 @@ class Mapping(object):
     def getHyperCorners(self):
         raise
         pass
+
+def create_VarRowTable(name,values):
+    this_table_class_def={'__tablename__':name,id : sa.Column(sa.Integer, primary_key=True), 'value' : sa.Column(sa.String)}
+    MyObj=type(name,(Base,),this_table_class_def)
+    return MyObj
     
-class Variable(object):
+    
+class Variable(Base):
     """
     A general variable object, inherited by specific types
 
@@ -249,6 +258,9 @@ class Variable(object):
     value = The current value of the variable, defined by the index
 
     """
+    __tablename__ = 'Variables'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
 
     def __init__(self,name, variable_tuple,ordered=True):
 
