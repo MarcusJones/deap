@@ -23,7 +23,13 @@ import logging.config
 
 logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
 myLogger = logging.getLogger()
+#myLogger = logging.getLogger('sqlalchemy.engine')
+#myLogger.setLevel("DEBUG")
 myLogger.setLevel("DEBUG")
+from UtilityLogger import loggerCritical
+
+#logging.basicConfig()
+#logging.getLogger('sqlalchemy.engine').setLevel(logging.DEBUG)
 
 #--- Import other
 import numpy as np
@@ -32,7 +38,7 @@ import matplotlib.pyplot as plt
 #from math import sqrt
 import utility_SQL_alchemy as util_sa
 #--- Import design space
-from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace
+from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective
 from deap.design_space import Individual2
 from deap.mj_utilities.db_base import DB_Base
 
@@ -68,7 +74,10 @@ def main(seed=None):
     session = Session()
     logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
 
-
+    
+    #===========================================================================
+    # Parameters
+    #===========================================================================
     NDIM = 3
     BOUND_LOW, BOUND_UP = 0.0, 1.0
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
@@ -79,39 +88,56 @@ def main(seed=None):
     CXPB = 0.9
     range(NDIM)
 
-    # Create variables
-    var_names = ['var'+'a'*(num+1) for num in range(NDIM)]
-    myLogger.setLevel("CRITICAL")
-    basis_set = [Variable.from_range(name, BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
-    myLogger.setLevel("DEBUG")
-    # Add variables to DB
-
-    DB_Base.metadata.create_all(engine)
+    #===========================================================================
+    # Variables and design space
+    #===========================================================================
+    # Create basis set
+    var_names = ['var'+'a'*(num+1) for num in range(NDIM)]    
+    #myLogger.setLevel("CRITICAL")
+    with loggerCritical():
+        basis_set = [Variable.from_range(name, BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
+    #myLogger.setLevel("DEBUG")
+    
+    # Add to DB
+    #DB_Base.metadata.create_all(engine)
+    for var in basis_set:
+        session.add_all(var.variable_tuple)
+        
+    # Add the variable names to the DB
     session.add_all(basis_set)
-
-
 
     # Create DSpace
     thisDspace = DesignSpace(basis_set)
 
-
+    #===========================================================================
+    # Objectives
+    #===========================================================================
     # Create OSpace
-    objective_names = ('obj1','obj3')
-    objective_goals = ('Max', 'Min')
-    this_obj_space = ObjectiveSpace(objective_names, objective_goals)
+    obj1 = Objective('obj1', 'Max')
+    obj2 = Objective('obj2', 'Min')
+    objs = [obj1, obj2]
+    this_obj_space = ObjectiveSpace(objs)
+    
+    # Add to DB
+    for obj in objs:
+        session.add(obj)
+        
+    #===========================================================================
+    # Mapping
+    #===========================================================================
     mapping = Mapping(thisDspace, this_obj_space)
-    #print(mapping.design_space.basis_set[0].variable_tuple[0].__table__)
-    #raise
-    #print(session.dirty)
-    #print(session.new)
 
+    #===========================================================================
+    # Flush DB    
+    #===========================================================================
+    DB_Base.metadata.create_all(engine)    
     session.commit()
     util_sa.print_all_pretty_tables(engine, 20)
-    #print(DB_Base.metadata.tables.keys())
-    raise
 
 
+    #===========================================================================
     # Statistics and logging
+    #===========================================================================
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
     stats.register("std", np.std, axis=0)
@@ -124,21 +150,27 @@ def main(seed=None):
 
     toolbox = base.Toolbox()
 
-    #--- Eval
+    #===========================================================================
+    # Eval
+    #===========================================================================
     toolbox.register("evaluate", benchmarks.mj_zdt1_decimal)
 
-    #--- Operators
+    #===========================================================================
+    # Operators
+    #===========================================================================
     toolbox.register("mate", tools.cxSimulatedBinaryBounded,
                      low=BOUND_LOW, up=BOUND_UP, eta=20.0)
     toolbox.register("mutate", tools.mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
                      eta=20.0, indpb=1.0/NDIM)
     toolbox.register("select", tools.selNSGA2)
 
+    #===========================================================================
     # Create the population
+    #===========================================================================
     mapping.assign_individual(Individual2)
     mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
-
+    
     # Evaluate first pop
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
     toolbox.map(toolbox.evaluate, invalid_ind)
@@ -190,19 +222,21 @@ def main(seed=None):
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
     pop.sort(key=lambda x: x.fitness.values)
-    print(stats)
-    print("Convergence: ", convergence(pop, optimal_front))
-    print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+    return pop, stats
+    #print(stats)
+    #print("Convergence: ", convergence(pop, optimal_front))
+    #print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
 
 if __name__ == "__main__":
     with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
         optimal_front = json.load(optimal_front_data)
+        
     # Use 500 of the 1000 points in the json file
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
     pop, stats = main()
     pop.sort(key=lambda x: x.fitness.values)
 
-    print(stats)
+    #print(stats)
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))

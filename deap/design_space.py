@@ -240,43 +240,21 @@ class Mapping(object):
         pass
 
 
-# USE THIS
-def get_value_class(name ):
+def generate_variable_table_class(name):
+    """This is a helper function which dynamically creates a new ORM enabled class
+    The table will hold the individual values of each variable
+    Individual values are stored as a string
+    """
     class NewTable( DB_Base ):
         __tablename__ = name
         #__table_args__ = { 'schema': db }
         id = Column(Integer, primary_key=True)
         value = Column(String)
         def __init__(self,value):
-            self.value = value
+            self.value = str(value)
 
     NewTable.__name__ = name
     return NewTable
-
-#
-# class ValueBase(object):
-#     def __init__(self,value):
-#         self.value = value
-#
-#     def __repr__(self):
-#         return("{}".format(self.value))
-#
-#
-# def create_var_values_table(name):
-#     this_table_class_def={'__tablename__':name, 'id' : sa.Column(sa.Integer, primary_key=True), 'value' : sa.Column(sa.Float)}
-#     #MyObj=type(name,(DB_Base),this_table_class_def)
-#     MyObj=type(name,(DB_Base),this_table_class_def)
-#           #type('FooBar', (Foo), {})
-#
-#     def __init__(self,value):
-#         self.value = value
-#
-#     MyObj.__init__ = classmethod(__init__)
-#     #setattr(MyObj, '__init__', classmethod())
-#
-#     #MyObj.__init__ = __init__
-#     return MyObj
-
 
 class Variable(DB_Base):
     """
@@ -295,9 +273,12 @@ class Variable(DB_Base):
     __tablename__ = 'Variables'
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    type = Column(String)
 
-    def __init__(self,name, variable_tuple,ordered=True):
-
+    def __init__(self,name, variable_tuple, ordered=True, type = "String"):
+        self.type = type
+        self.name = name
+        
         if isinstance(variable_tuple,tuple):
             pass
         elif isinstance(variable_tuple,int):
@@ -317,16 +298,15 @@ class Variable(DB_Base):
             print('Initialize with a list or tuple')
             raise
 
-        self.name = name
 
         # Convert the variable tuple to the database
         # Create the class which holds the
 
         #print(variable_tuple)
 
-        ValueClass = get_value_class(name)
-
-
+        ValueClass = generate_variable_table_class(name)
+        logging.debug("Variable value class; {}".format(ValueClass))
+        
         #print(ValueClass)
         #print(dir(ValueClass))
         #print(ValueClass.__init__)
@@ -338,12 +318,15 @@ class Variable(DB_Base):
         #print)
 
         variable_class_tuple = [ValueClass(val) for val in variable_tuple]
-
+        #print(variable_class_tuple[0])
+        #print(variable_class_tuple[0].__table__)
+        #print(variable_class_tuple[0])
+        #raise
         self.variable_tuple = variable_class_tuple
 
         self.ordered = ordered
 
-        self.value_type = type(self.variable_tuple[0])
+        #self.value_type = type(self.variable_tuple[0])
 
         self.index = None
 
@@ -499,7 +482,7 @@ class Variable(DB_Base):
                                  shortTupleString,
                                  ordStr,
                                  id(self),
-                                 self.value_type,
+                                 self.type,
                                  )
 
 
@@ -532,10 +515,21 @@ class Variable(DB_Base):
         return self
 
 
+class Objective(DB_Base):
+    __tablename__ = 'Objectives'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    goal = Column(String)
+    
+    def __init__(self, name, goal):
+        self.name = name
+        self.goal = goal
 
 class ObjectiveSpace(object):
-
-    def __init__(self, objective_names, objective_goals):
+    def __init__(self, objectives):
+        objective_names = [obj.name for obj in objectives]
+        objective_goals = [obj.goal for obj in objectives]
+        
         assert not isinstance(objective_names, basestring)
         assert not isinstance(objective_goals, basestring)
         assert(type(objective_names) == list or type(objective_names) == tuple)
@@ -619,6 +613,11 @@ class DesignSpace(object):
         return len(self.basis_set)
 
 class Individual2(list):
+    __tablename__ = 'Individuals'
+    id = Column(Integer, primary_key=True)
+    #name = Column(String)
+    #type = Column(String)
+    
     def __init__(self, items, names, indices, fitness=None, fitness_names = None):
         if not names:
             names = [str(i) for i in range(len(items))]
@@ -627,7 +626,11 @@ class Individual2(list):
         self.fitness = fitness
         self.fitness_names = fitness_names
         super(Individual2, self).__init__(items)
-
+        
+    @property
+    def id(self):
+        return(self.__hash__)
+    
     def __hash__(self):
         """This defines the uniqueness of the individual
         The ID of an individual could be, for example, the string composed of the variable vectors
@@ -647,6 +650,7 @@ class Individual2(list):
 
 
 class Individual(object):
+    
     """
     Holds a variable vector with labels;
     chromosome
@@ -662,6 +666,7 @@ class Individual(object):
     """
 
     def __init__(self, labels, chromosome, indices, evaluator, fitness = None):
+        raise
         self.labels = labels
         self.chromosome = chromosome
         self.indices = indices
