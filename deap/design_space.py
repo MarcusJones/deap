@@ -37,7 +37,7 @@ import numpy as np
 import sqlalchemy as sa
 import utility_SQL_alchemy as util_sa
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Table
 
 
 from deap.mj_utilities.db_base import DB_Base
@@ -182,6 +182,40 @@ class Mapping(object):
         self.fitness = fitness
         logging.info("This mapping will produce {} fitness".format(fitness.__name__))
 
+    #--- Database
+    def generate_individuals_table(self, metadata):
+        columns = list()
+        columns.append(sa.Column('hash', sa.Integer, primary_key=True))
+        columns.append(sa.Column('start', sa.DateTime))
+        columns.append(sa.Column('finish', sa.DateTime))        
+        for var in self.design_space.basis_set:
+            columns.append(sa.Column("{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ))
+        for obj in self.objective_space.objective_names:
+            columns.append(sa.Column("{}".format(obj), sa.Float, nullable = False,  ))
+            columns.append(sa.Column("{}".format(obj), sa.Float))
+        
+        tab_results = sa.Table('results', metadata, *columns)
+        #print(tab_results)
+        #print(tab_results.columns)
+        
+#         #logging.info("Created table {} with {} columns".format(tab_results, len(columns)))
+# 
+#         #raise
+#     
+#         #print(this_table)
+#         #players_table = Table('players', metadata,
+#             Column('id', Integer, primary_key=True),
+#             Column('name', String),
+#             Column('score', Integer)
+#             )
+#         print(players_table)
+#         print(players_table.columns)
+#         raise
+#       
+        return(tab_results)  
+       # metadata.create_all(engine) # create the table
+
+
     # Generating points in the space-------------
     def get_random_mapping(self):
         """
@@ -197,8 +231,8 @@ class Mapping(object):
             chromosome.append(var.value)
             indices.append(var.index)
             labels.append(var.name)
-
-        thisIndiv = self.Individual(items=chromosome, names=labels, indices=indices, fitness=self.fitness())
+            
+        thisIndiv = self.Individual(items=chromosome, names=labels, indices=indices, fitness_names = self.objective_space.objective_names,fitness=self.fitness())
 
         return thisIndiv
 
@@ -246,13 +280,19 @@ def generate_variable_table_class(name):
     Individual values are stored as a string
     """
     class NewTable( DB_Base ):
-        __tablename__ = name
+        __tablename__ = "vector_{}".format(name)
         #__table_args__ = { 'schema': db }
         id = Column(Integer, primary_key=True)
         value = Column(String)
         def __init__(self,value):
             self.value = str(value)
-
+            
+        def __str__(self):
+            return self.value
+        
+        def __repr__(self):
+            return self.value    
+        
     NewTable.__name__ = name
     return NewTable
 
@@ -612,25 +652,47 @@ class DesignSpace(object):
         """
         return len(self.basis_set)
 
+
+
+
+#class Individual2(list, DB_Base):
 class Individual2(list):
-    __tablename__ = 'Individuals'
-    id = Column(Integer, primary_key=True)
+    #__tablename__ = 'Individuals'
+    #id = Column(Integer, primary_key=True)
+    #value_index_str = Column(String)
+    #names = Column(String)
+    #id = Column(Integer)
+    
+    #sa.PrimaryKeyConstraint('id', name='mytable_pk')
+    #blank = Column(String)
     #name = Column(String)
     #type = Column(String)
     
     def __init__(self, items, names, indices, fitness=None, fitness_names = None):
+
         if not names:
             names = [str(i) for i in range(len(items))]
         assert len(items) == len(names)
+        
         self.names = names
         self.fitness = fitness
         self.fitness_names = fitness_names
         super(Individual2, self).__init__(items)
         
-    @property
-    def id(self):
-        return(self.__hash__)
-    
+        for name, index in zip(names,indices):
+            setattr(self, name, index)
+            
+        for name in self.fitness_names:
+            setattr(self, name, None)
+                        
+        #for name, fit in zip(fitness_names,fitness):
+        #    setattr(self, name, fit)            
+            #print(name, index)
+        #raise
+        
+        self.hash = self.__hash__()
+        self.value_index_str = str(indices)
+        
     def __hash__(self):
         """This defines the uniqueness of the individual
         The ID of an individual could be, for example, the string composed of the variable vectors
@@ -639,16 +701,24 @@ class Individual2(list):
         """
         return hash(tuple(zip(self.names,self[:])))
 
+    def __repr__(self):
+        return(self.__str__())
+    
     def __str__(self):
         pairs = zip(self.names, self)
-        str_pairs = (["{}={}".format(pair[0],pair[1]) for pair in pairs])
-        this_str = ", ".join(str_pairs)
+        variable_pairs = (["{}={}".format(pair[0],pair[1]) for pair in pairs])
+        #fitness_pairs
+        this_str = "{} [{}] -> {}".format(self.__hash__(),",".join(variable_pairs), self.fitness)
 
         return(this_str)
-
-
-
-
+    
+    def assign_fitness(self):
+        #print()
+        #print(self.fitness_names)
+        #print(self.fitness)
+        for name, fit in zip(self.fitness_names,self.fitness.values):
+            setattr(self, name, fit)
+        #setattr(self, name, fit)        
 class Individual(object):
     
     """

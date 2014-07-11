@@ -62,13 +62,16 @@ from deap import tools
 import sqlalchemy as sa
 import utility_SQL_alchemy as util_sa
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm.exc import MultipleResultsFound,NoResultFound
 
 
 #---
+#def 
+
 
 def main(seed=None):
 
-    engine = sa.create_engine('sqlite:///:memory:', echo=True)
+    engine = sa.create_engine('sqlite:///:memory:', echo=0)
     #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
@@ -80,10 +83,10 @@ def main(seed=None):
     #===========================================================================
     NDIM = 3
     BOUND_LOW, BOUND_UP = 0.0, 1.0
-    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.01'
+    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '.5'
+    RES_STR = '0.10'
     NGEN = 10
-    POPSIZE = 8
+    POPSIZE = 80
     MU = 100
     CXPB = 0.9
     range(NDIM)
@@ -123,18 +126,20 @@ def main(seed=None):
         session.add(obj)
         
     #===========================================================================
-    # Mapping
+    # Mapping and results table
     #===========================================================================
     mapping = Mapping(thisDspace, this_obj_space)
-
+    results_table = mapping.generate_individuals_table(DB_Base.metadata)
+    sa.orm.mapper(Individual2, results_table) 
+    
     #===========================================================================
-    # Flush DB    
+    # Flush DB
     #===========================================================================
     DB_Base.metadata.create_all(engine)    
     session.commit()
-    util_sa.print_all_pretty_tables(engine, 20)
+    #util_sa.print_all_pretty_tables(engine, 20)
 
-
+    #raise
     #===========================================================================
     # Statistics and logging
     #===========================================================================
@@ -170,15 +175,48 @@ def main(seed=None):
     mapping.assign_individual(Individual2)
     mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
+    #print(pop[0])
+    #print(pop[0].vara)
+    #raise
+    #===========================================================================
+    # Flush DB
+    #===========================================================================
+    #print(pop)
+    DB_Base.metadata.create_all(engine)    
+    #session.add_all(pop)
+    session.commit()
+    
+    #for ind in pop:
+    #    print(ind)
     
     # Evaluate first pop
-    invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    toolbox.map(toolbox.evaluate, invalid_ind)
-    logging.debug("Evaluated {} individuals".format(len(invalid_ind)))
-
-    # Check that they are evaluated
+    
+    # Only evaluate each individual ONCE
+    #population_set = set(pop)
+    eval_count = 0
+    for ind in pop:
+        try:
+            # First, check if in DB            
+            query = session.query(Individual2).filter(Individual2.hash == ind.hash)
+            ind = query.one()
+            print(ind)
+        except sa.orm.exc.NoResultFound:
+            # Otherwise, do a fresh evaluation
+            ind = toolbox.evaluate(ind)
+            ind.assign_fitness()
+            eval_count += 1
+            session.add(ind)
+            
+    logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
+    session.commit()
+    logging.debug("Committed {} new individuals to DB".format(eval_count))
+    
+  
+    # Check that they are indeed evaluated
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
     assert not invalid_ind
+    
+
 
     pop = toolbox.select(pop, len(pop))
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
@@ -222,6 +260,11 @@ def main(seed=None):
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
     pop.sort(key=lambda x: x.fitness.values)
+    
+    util_sa.print_all_pretty_tables(engine, 20)
+    
+    
+    
     return pop, stats
     #print(stats)
     #print("Convergence: ", convergence(pop, optimal_front))
