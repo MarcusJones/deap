@@ -161,9 +161,11 @@ def main(seed=None):
     #===========================================================================
     # Operators
     #===========================================================================
-    toolbox.register("mate", tools.cxSimulatedBinaryBounded,
-                     low=BOUND_LOW, up=BOUND_UP, eta=20.0)
-    toolbox.register("mutate", tools.mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
+    toolbox.register("mate", tools.mj_string_cxSimulatedBinaryBounded,
+                     low=BOUND_LOW, up=BOUND_UP, eta=20.0)    
+    #toolbox.register("mate", tools.cxSimulatedBinaryBounded,
+    #                 low=BOUND_LOW, up=BOUND_UP, eta=20.0)
+    toolbox.register("mutate", tools.mj_string_mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
                      eta=20.0, indpb=1.0/NDIM)
     toolbox.register("select", tools.selNSGA2)
 
@@ -183,72 +185,64 @@ def main(seed=None):
     DB_Base.metadata.create_all(engine)    
     #session.add_all(pop)
     session.commit()
-    
 
-    
-    #for ind in pop:
-    #    print(ind)
-    
+    #===========================================================================
     # Evaluate first pop
-    
-    # Only evaluate each individual ONCE
-    #population_set = set(pop)
+    #===========================================================================
     eval_count = 0
     final_pop = list()
-    for ind in pop:
-        #logging.debug("Processing {}".format(ind))
-        try:
-            # First, check if in DB            
-            query = session.query(Individual2).filter(Individual2.hash == ind.hash)
-            ind = query.one()
-            logging.debug("Retrieved {}".format(ind))
-        except sa.orm.exc.NoResultFound:
-            # Otherwise, do a fresh evaluation
-            ind = toolbox.evaluate(ind)
-            logging.debug("Evaluated {}".format(ind))
-            #ind.assign_fitness()
-            eval_count += 1
-            session.add(ind)
-        final_pop.append(ind)
-        #for ind in session.query(Individual2).all():
-        #    print(ind)
-        #raise Exception
+    with loggerCritical():
+        # Only evaluate each individual ONCE
+        for ind in pop:
             
+            # First, check if in DB
+            try:
+                query = session.query(Individual2).filter(Individual2.hash == ind.hash)
+                ind = query.one()
+                logging.debug("Retrieved {}".format(ind))
+                
+            # Otherwise, do a fresh evaluation
+            except sa.orm.exc.NoResultFound:
+                ind = toolbox.evaluate(ind)
+                logging.debug("Evaluated {}".format(ind))
+                eval_count += 1
+                session.add(ind)
+            final_pop.append(ind)
+    
     logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
     session.commit()
     logging.debug("Committed {} new individuals to DB".format(eval_count))
-    
-    #for ind in pop:
-    #    print(ind)
-    #raise Exception
 
-    # Check that they are indeed evaluated
+    # Assert that they are indeed evaluated
     for ind in final_pop:
-        #if not ind.fitness.valid:
-            #print(ind)
-            #ind.recreate_fitness()
         assert ind.fitness.valid, "{}".format(ind)
         
-    #invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    #assert not invalid_ind
+    # And re-copy
+    pop = final_pop
     
-    #raise Exception
-
+    #===========================================================================
+    # Selection
+    #===========================================================================
     pop = toolbox.select(pop, len(pop))
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
 
-    myLogger.setLevel("CRITICAL")
     for gen in range(1, NGEN):
+        #=======================================================================
         # Vary the population
+        #=======================================================================
         offspring = tools.selTournamentDCD(pop, len(pop))
-        offspring = [toolbox.clone(ind) for ind in offspring]
+           
+        #offspring = [toolbox.clone(ind) for ind in offspring]
+        #for ind in offspring:
+        #    print(ind)         
+        #raise Exception
+        
         logging.debug("Selected and cloned {} offspring".format(len(offspring)))
-
         pairs = zip(offspring[::2], offspring[1::2])
         for ind1, ind2 in pairs:
             if random.random() <= CXPB:
                 toolbox.mate(ind1, ind2)
-
+            
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
             del ind1.fitness.values, ind2.fitness.values
