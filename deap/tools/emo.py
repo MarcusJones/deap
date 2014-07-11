@@ -6,7 +6,7 @@ import random
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import defaultdict
-
+from operator import truediv
 import logging
 ######################################
 # Non-Dominated Sorting   (NSGA-II)  #
@@ -39,7 +39,7 @@ def selNSGA2(individuals, k, nd='standard'):
                         'method "{0}" is invalid.'.format(nd))
 
     for front in pareto_fronts:
-        assignCrowdingDist(front)
+        mj_str_assignCrowdingDist(front)
     
     chosen = list(chain(*pareto_fronts[:-1]))
     k = k - len(chosen)
@@ -114,6 +114,46 @@ def sortNondominated(individuals, k, first_front_only=False):
             next_front = []
     
     return fronts
+
+
+def mj_str_assignCrowdingDist(individuals):
+    """Assign a crowding distance to each individual's fitness. The 
+    crowding distance can be retrieve via the :attr:`crowding_dist` 
+    attribute of each individual's fitness.
+    """
+    if len(individuals) == 0:
+        return
+    
+    distances = [0.0] * len(individuals)
+#     print(individuals[0].fitness.valid)
+#     this_vals = individuals[0].fitness.wvalues
+#     this_weights = individuals[0].fitness.weights
+#     print(this_vals, this_weights)
+#     for val, w in zip(this_vals,this_weights):
+#         print(val, w)
+#         print(truediv(val,w))
+    #this_map = map(truediv, this_vals, this_weights)
+    #print(individuals[0].fitness.weights)
+    #print([(ind.fitness.values, i) for i, ind in enumerate(individuals)])
+    #print(tuple(map(truediv, self.wvalues, self.weights)))
+    crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
+    #raise Exception
+    nobj = len(individuals[0].fitness.values)
+    
+    for i in xrange(nobj):
+        crowd.sort(key=lambda element: element[0][i])
+        distances[crowd[0][1]] = float("inf")
+        distances[crowd[-1][1]] = float("inf")
+        if crowd[-1][0][i] == crowd[0][0][i]:
+            continue
+        norm = nobj * float(crowd[-1][0][i] - crowd[0][0][i])
+        for prev, cur, next in zip(crowd[:-2], crowd[1:-1], crowd[2:]):
+            distances[cur[1]] += (next[0][i] - prev[0][i]) / norm
+
+    for i, dist in enumerate(distances):
+        individuals[i].fitness.crowding_dist = dist
+
+
 
 def assignCrowdingDist(individuals):
     """Assign a crowding distance to each individual's fitness. The 

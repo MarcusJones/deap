@@ -413,8 +413,9 @@ def mj_zdt1_decimal(individual):
     
     :math:`f_{\\text{ZDT1}2}(\\mathbf{x}) = g(\\mathbf{x})\\left[1 - \\sqrt{\\frac{x_1}{g(\\mathbf{x})}}\\right]`
     """
-    values = individual[:]
-    
+    values = list(individual[:])
+    #print(values)
+    #raise
     #val = values[0]
     #print(val)
     #print(type(val))
@@ -432,11 +433,11 @@ def mj_zdt1_decimal(individual):
     #print(type(values[0].value))
     #print(float(values[0].value))
     #raise
-    individual[:] = values
+    #individual[:] = values
     #print(individual)
     #raise
-    g  = 1.0 + 9.0*sum(individual[1:])/(len(individual)-1)
-    f1 = individual[0]
+    g  = 1.0 + 9.0*sum(values[1:])/(len(values)-1)
+    f1 = values[0]
     f2 = g * (1 - sqrt(f1/g))
     individual.fitness.values = (f1, f2)
     return individual

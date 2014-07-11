@@ -177,8 +177,12 @@ class Fitness(object):
             self.values = values
         
     def getValues(self):
-        return tuple(map(truediv, self.wvalues, self.weights))
-            
+        try:
+            result = tuple(map(truediv, self.wvalues, self.weights))
+        except:
+            print("wvalues: {} weights: {}".format(self.wvalues, self.weights))
+            raise
+        return result
     def setValues(self, values):
         try:
             self.wvalues = tuple(map(mul, values, self.weights))

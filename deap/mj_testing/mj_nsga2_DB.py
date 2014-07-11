@@ -50,8 +50,6 @@ from deap import benchmarks
 from deap.benchmarks.tools import diversity, convergence
 from deap import creator
 from deap import tools
-
-
 from deap import algorithms
 from deap import base
 from deap import benchmarks
@@ -83,10 +81,10 @@ def main(seed=None):
     #===========================================================================
     NDIM = 3
     BOUND_LOW, BOUND_UP = 0.0, 1.0
-    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '.5'
+    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '.2'
     RES_STR = '0.10'
     NGEN = 10
-    POPSIZE = 80
+    POPSIZE = 8
     MU = 100
     CXPB = 0.9
     range(NDIM)
@@ -186,6 +184,8 @@ def main(seed=None):
     #session.add_all(pop)
     session.commit()
     
+
+    
     #for ind in pop:
     #    print(ind)
     
@@ -194,29 +194,45 @@ def main(seed=None):
     # Only evaluate each individual ONCE
     #population_set = set(pop)
     eval_count = 0
+    final_pop = list()
     for ind in pop:
+        #logging.debug("Processing {}".format(ind))
         try:
             # First, check if in DB            
             query = session.query(Individual2).filter(Individual2.hash == ind.hash)
             ind = query.one()
-            print(ind)
+            logging.debug("Retrieved {}".format(ind))
         except sa.orm.exc.NoResultFound:
             # Otherwise, do a fresh evaluation
             ind = toolbox.evaluate(ind)
-            ind.assign_fitness()
+            logging.debug("Evaluated {}".format(ind))
+            #ind.assign_fitness()
             eval_count += 1
             session.add(ind)
+        final_pop.append(ind)
+        #for ind in session.query(Individual2).all():
+        #    print(ind)
+        #raise Exception
             
     logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
     session.commit()
     logging.debug("Committed {} new individuals to DB".format(eval_count))
     
-  
-    # Check that they are indeed evaluated
-    invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    assert not invalid_ind
-    
+    #for ind in pop:
+    #    print(ind)
+    #raise Exception
 
+    # Check that they are indeed evaluated
+    for ind in final_pop:
+        #if not ind.fitness.valid:
+            #print(ind)
+            #ind.recreate_fitness()
+        assert ind.fitness.valid, "{}".format(ind)
+        
+    #invalid_ind = [ind for ind in pop if not ind.fitness.valid]
+    #assert not invalid_ind
+    
+    #raise Exception
 
     pop = toolbox.select(pop, len(pop))
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))

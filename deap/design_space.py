@@ -176,18 +176,18 @@ class Mapping(object):
 
     def assign_individual(self, Individual):
         self.Individual = Individual
-        logging.info("This mapping will produce {} individuals".format(Individual.__name__))
+        logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
 
     def assign_fitness(self, fitness):
         self.fitness = fitness
-        logging.info("This mapping will produce {} fitness".format(fitness.__name__))
+        logging.info("This mapping will produce fitness of class {}".format(fitness.__name__))
 
     #--- Database
     def generate_individuals_table(self, metadata):
         columns = list()
         columns.append(sa.Column('hash', sa.Integer, primary_key=True))
         columns.append(sa.Column('start', sa.DateTime))
-        columns.append(sa.Column('finish', sa.DateTime))        
+        columns.append(sa.Column('finish', sa.DateTime))    
         for var in self.design_space.basis_set:
             columns.append(sa.Column("{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ))
         for obj in self.objective_space.objective_names:
@@ -195,25 +195,8 @@ class Mapping(object):
             columns.append(sa.Column("{}".format(obj), sa.Float))
         
         tab_results = sa.Table('results', metadata, *columns)
-        #print(tab_results)
-        #print(tab_results.columns)
         
-#         #logging.info("Created table {} with {} columns".format(tab_results, len(columns)))
-# 
-#         #raise
-#     
-#         #print(this_table)
-#         #players_table = Table('players', metadata,
-#             Column('id', Integer, primary_key=True),
-#             Column('name', String),
-#             Column('score', Integer)
-#             )
-#         print(players_table)
-#         print(players_table.columns)
-#         raise
-#       
         return(tab_results)  
-       # metadata.create_all(engine) # create the table
 
 
     # Generating points in the space-------------
@@ -221,7 +204,6 @@ class Mapping(object):
         """
         Randomly sample all basis_set vectors, return a random variable vector
         """
-        #[var.get_random() for var in  self.design_space.basis_set]
 
         chromosome = list()
         indices = list()
@@ -232,14 +214,20 @@ class Mapping(object):
             indices.append(var.index)
             labels.append(var.name)
             
-        thisIndiv = self.Individual(items=chromosome, names=labels, indices=indices, fitness_names = self.objective_space.objective_names,fitness=self.fitness())
-
-        return thisIndiv
+        this_ind = self.Individual(items=chromosome, 
+                                    names=labels, 
+                                    indices=indices, 
+                                    fitness_names = self.objective_space.objective_names, 
+                                    fitness=self.fitness()
+                                    )
+        
+        #logging.debug("Returned random individual {}".format(this_ind))
+        
+        return this_ind
 
     def get_random_population(self,pop_size):
         """Call get_random_mapping n times to generate a list of individuals
         """
-
         indiv_list = list()
         for idx in range(pop_size):
             indiv_list.append(self.get_random_mapping())
@@ -668,7 +656,7 @@ class Individual2(list):
     #name = Column(String)
     #type = Column(String)
     
-    def __init__(self, items, names, indices, fitness=None, fitness_names = None):
+    def __init__(self, items, names, indices, fitness, fitness_names):
 
         if not names:
             names = [str(i) for i in range(len(items))]
@@ -684,7 +672,9 @@ class Individual2(list):
             
         for name in self.fitness_names:
             setattr(self, name, None)
-                        
+        
+        
+        #print(self.obj1)
         #for name, fit in zip(fitness_names,fitness):
         #    setattr(self, name, fit)            
             #print(name, index)
@@ -693,6 +683,20 @@ class Individual2(list):
         self.hash = self.__hash__()
         self.value_index_str = str(indices)
         
+        logging.debug("Individual instantiated; {}".format(self))
+    
+    def recreate_fitness(self):
+        fit_vals = list()
+        for name in self.fitness_names:
+            fit_vals.append(getattr(self, name))
+        #print(self.)
+        #print(self.)
+        print(self)
+        print(self.obj1)
+        print(fit_vals)
+        raise Exception
+
+                
     def __hash__(self):
         """This defines the uniqueness of the individual
         The ID of an individual could be, for example, the string composed of the variable vectors
@@ -708,7 +712,7 @@ class Individual2(list):
         pairs = zip(self.names, self)
         variable_pairs = (["{}={}".format(pair[0],pair[1]) for pair in pairs])
         #fitness_pairs
-        this_str = "{} [{}] -> {}".format(self.__hash__(),",".join(variable_pairs), self.fitness)
+        this_str = "{} [{}] -> {}: {}".format(self.__hash__(),",".join(variable_pairs), self.fitness.__class__.__name__, self.fitness)
 
         return(this_str)
     
