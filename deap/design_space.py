@@ -645,31 +645,22 @@ class DesignSpace(object):
 
 #class Individual2(list, DB_Base):
 class Individual2(list):
-    #__tablename__ = 'Individuals'
-    #id = Column(Integer, primary_key=True)
-    #value_index_str = Column(String)
-    #names = Column(String)
-    #id = Column(Integer)
-    
-    #sa.PrimaryKeyConstraint('id', name='mytable_pk')
-    #blank = Column(String)
-    #name = Column(String)
-    #type = Column(String)
-    
-    def __init__(self, items, names, indices, fitness, fitness_names):
-
+    def __init__(self, value_list, names, indices, fitness, fitness_names):
+        
         if not names:
-            names = [str(i) for i in range(len(items))]
-        assert len(items) == len(names)
+            names = [str(i) for i in range(len(value_list))]
+        assert len(value_list) == len(names)
         
         self.names = names
         self.fitness = fitness
         self.fitness_names = fitness_names
-        super(Individual2, self).__init__(items)
+        super(Individual2, self).__init__(value_list)
         
+        # Each item of the list needs it's own attribute defined in class
         for name, index in zip(names,indices):
             setattr(self, name, index)
-            
+        
+        # Each item of fitness
         for name in self.fitness_names:
             setattr(self, name, None)
         
