@@ -206,8 +206,8 @@ class Mapping(object):
                                     #names=labels,
                                     #vtypes = vtypes,
                                     #indices=indices, 
-                                    fitness_names = self.objective_space.objective_names, 
-                                    fitness=self.fitness()
+                                    #fitness_names = self.objective_space.objective_names, 
+                                    fitness=self.fitness
                                     )
         if flg_verbose:
             logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
@@ -744,7 +744,7 @@ class Individual2(list):
     Each gene is an instance of the Variable class
     The Individual class inherits list (slicing, assignment, mutability, etc.)
     """
-    def __init__(self, chromosome, fitness, fitness_names):
+    def __init__(self, chromosome, fitness):
         
         for val in chromosome:
             assert type(val) == VariableObject
@@ -774,6 +774,7 @@ class Individual2(list):
         
         self.chromosome = chromosome
         
+        self.fitness = fitness
         #print(self)
         #raise
         
@@ -825,9 +826,7 @@ class Individual2(list):
     #    return(self.__str__())
     
     def __str__(self):
-        
-        
-        return "{:>12}; {}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]))
+        return "{:>12}; {}, fitness:{}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]), self.fitness)
                               #str() + ) #+ ", ".join([str(id(gene)) for gene in self.chromosome])
         
 #         name_idx_val = zip(self.names, self.indices, self)

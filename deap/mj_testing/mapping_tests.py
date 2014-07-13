@@ -255,7 +255,7 @@ class MappingPopulationTests2(unittest.TestCase):
 class TestMate(unittest.TestCase):
     def setUp(self):
         #print "**** TEST {} ****".format(whoami())
-        myLogger.setLevel("CRITICAL")
+        #myLogger.setLevel("CRITICAL")
         
         #=======================================================================
         # Parameters
@@ -308,8 +308,8 @@ class TestMate(unittest.TestCase):
         # Results is composed of a class and a table, mapped together        
         #=======================================================================
         res_ORM_table = generate_individuals_table(self.mapping)
-        Results = generate_ORM_individual(self.mapping)
-        sa.orm.mapper(Results, res_ORM_table) 
+        self.Results = generate_ORM_individual(self.mapping)
+        sa.orm.mapper(self.Results, res_ORM_table) 
         
         # 
         DB_Base.metadata.create_all(self.engine)    
@@ -321,10 +321,38 @@ class TestMate(unittest.TestCase):
         print("**** TEST {} ****".format(whoami()))
         pop = self.mapping.get_random_population(20)
         toolbox = dp.base.Toolbox()
-        print(dp)
-        print(dp.benchmarks)
-        from deap import benchmarks
-        toolbox.register("evaluate", dp.benchmarks.mj_zdt1_decimal)
+
+        from deap.benchmarks import mj as mj
+        toolbox.register("evaluate", mj.mj_zdt1_decimal)
+    
+        util_sa.print_all_pretty_tables(self.engine)
+        
+        
+        eval_count = 0
+        final_pop = list()
+        #with loggerCritical():
+        # Only evaluate each individual ONCE
+        for ind in pop:
+            
+            # First, check if in DB
+            try:
+                query = self.session.query(self.Results).filter(self.Results.hash == ind.hash)
+                ind = query.one()
+                logging.debug("Retrieved {}".format(ind))
+                
+            # Otherwise, do a fresh evaluation
+            except sa.orm.exc.NoResultFound:
+                ind = toolbox.evaluate(ind)
+                logging.debug("Evaluated {}".format(ind))
+                eval_count += 1
+                res = convert_individual_DB(self.Results,ind)
+                self.session.add(res)
+            final_pop.append(ind)
+        
+        logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
+        self.session.commit()
+        logging.debug("Committed {} new individuals to DB".format(eval_count))
+
 
                     
             
