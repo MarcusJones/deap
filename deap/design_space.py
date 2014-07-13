@@ -38,7 +38,7 @@ import sqlalchemy as sa
 import utility_SQL_alchemy as util_sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Table
-
+from copy import deepcopy
 
 from deap.mj_utilities.db_base import DB_Base
 
@@ -189,24 +189,24 @@ class Mapping(object):
         """
         
         chromosome = list()
-        indices = list()
-        vtypes = list()
-        labels = list()
+        #indices = list()
+        #vtypes = list()
+        #labels = list()
         for var in self.design_space.basis_set:
-            var.get_random()
-            chromosome.append(var.value_str)
-            indices.append(var.index)
-            vtypes.append(var.vtype)
-            labels.append(var.name)
+            this_var = var.get_random_obj()
+            chromosome.append(this_var)
+            #indices.append(var.index)
+            #vtypes.append(var.vtype)
+            #labels.append(var.name)
         
         logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))
         #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
         
         
-        this_ind = self.Individual(value_list=chromosome, 
-                                    names=labels,
-                                    vtypes = vtypes,
-                                    indices=indices, 
+        this_ind = self.Individual(chromosome=chromosome, 
+                                    #names=labels,
+                                    #vtypes = vtypes,
+                                    #indices=indices, 
                                     fitness_names = self.objective_space.objective_names, 
                                     fitness=self.fitness()
                                     )
@@ -257,6 +257,7 @@ def generate_variable_table_class(name):
     The table will hold the individual values of each variable
     Individual values are stored as a string
     """
+
     class NewTable( DB_Base ):
         __tablename__ = "vector_{}".format(name)
         #__table_args__ = { 'schema': db }
@@ -271,8 +272,43 @@ def generate_variable_table_class(name):
         def __repr__(self):
             return self.value    
         
-    NewTable.__name__ = name
+    NewTable.__name__ = "vector_ORM_{}".format(name)
     return NewTable
+
+class VariableObject(object):
+    """
+    A general variable object, inherited by specific types
+
+    Init Attributes
+    name - A label for the variable. Required.
+    variable_tuple - The k-Tuple of possible values
+    ordered= True - Flag
+
+    Internal Attributes
+    index = None - The corresponding index of the generated value
+    value = The current value of the variable, defined by the index
+
+    """
+    def __init__(self, name, vtype, variable_tuple, index, ordered):
+        self.name = name
+        self.vtype = vtype
+        self.variable_tuple = variable_tuple
+        self.index = index
+        self.ordered = ordered
+
+        logging.debug("{}".format(self))
+
+    @property
+    def val_str(self):
+        return str(self.variable_tuple[self.index])
+    
+    def this_val_str(self):
+        
+        """
+        String for current name and current value
+        """
+        return "{}[{}] := {}".format(self.name, self.index, self.val_str)
+
 
 class Variable(DB_Base):
     """
@@ -322,8 +358,8 @@ class Variable(DB_Base):
 
         #print(variable_tuple)
 
-        ValueClass = generate_variable_table_class(name)
-        logging.debug("Variable value class; {}".format(ValueClass))
+        self.ValueClass = generate_variable_table_class(name)
+        logging.debug("Variable value class; {}".format(self.ValueClass))
         
         #print(ValueClass)
         #print(dir(ValueClass))
@@ -335,7 +371,7 @@ class Variable(DB_Base):
         #print(this_val)
         #print)
 
-        variable_class_tuple = [ValueClass(val) for val in variable_tuple]
+        variable_class_tuple = [self.ValueClass(val) for val in variable_tuple]
         #print(variable_class_tuple[0])
         #print(variable_class_tuple[0].__table__)
         #print(variable_class_tuple[0])
@@ -351,11 +387,11 @@ class Variable(DB_Base):
         logging.debug("{}".format(self))
 
     @property
-    def value(self):
+    def value_ORM(self):
         return self.variable_tuple[self.index]
     
     @property
-    def value_str(self):
+    def val_str(self):
         return str(self.variable_tuple[self.index])
     
     @classmethod
@@ -408,6 +444,21 @@ class Variable(DB_Base):
         """
 
         self.index = random.choice(range(len(self)))
+        return self
+
+    def get_random_obj(self):
+        """
+        Return a random value from all possible values
+        """
+
+        self.index = random.choice(range(len(self)))
+        
+        
+        return VariableObject(self.name, 
+                              self.vtype, 
+                              self.variable_tuple, 
+                              self.index, 
+                              self.ordered)
 
 
     def get_new_random(self):
@@ -463,11 +514,12 @@ class Variable(DB_Base):
 #        else:
 #            return self.get_new_random()
 
-    def val_str(self):
+    def this_val_str(self):
+        
         """
         String for current name and current value
         """
-        return "{}[{}] := {}".format(self.name, self.index, self.value)
+        return "{}[{}] := {}".format(self.name, self.index, self.val_str)
 
     def __len__(self):
         """
@@ -652,13 +704,20 @@ def generate_individuals_table(mapping):
     return(tab_results)  
 
 def generate_ORM_individual(mapping):
-    
+    def __str__(self):
+        return "XXX"
+        #return ", ".join(var in mapping.design_space.basis_set)
+    def __repr__(self):
+        #return ",".join(dir(self))
+        return "{} {} {}".format(self.hash, self.start, self.finish)
+        #return ", ".join(var in mapping.design_space.basis_set)  
     attr_dict = {
                     '__tablename__' : 'Results',
                     'hash' : sa.Column(Integer, primary_key=True),
                     'start' : sa.Column('start', sa.DateTime),
                     'finish' : sa.Column('finish', sa.DateTime),
-                    
+                    '__str__' : __str__,
+                    '__repr__' : __repr__,
                 }
     for var in mapping.design_space.basis_set:
         attr_dict["var_c_{}".format(var.name)] =sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ) 
@@ -675,35 +734,54 @@ def convert_individual_DB(ResultsClass,ind):
     this_res = ResultsClass()
     this_res.hash = ind.hash
     
-    for name,index,vtype in zip(ind.names,ind.indices,ind.vtypes):
-        setattr(this_res, "var_c_{}".format(name),index)
+    for gene in ind.chromosome:
+        setattr(this_res, "var_c_{}".format(gene.name),gene.index)
     return this_res
 
 
 class Individual2(list):
-    
-    def __init__(self, value_list, indices, names, vtypes, fitness, fitness_names):
+    """An individual is composed of a list of genes (chromosome)
+    Each gene is an instance of the Variable class
+    The Individual class inherits list (slicing, assignment, mutability, etc.)
+    """
+    def __init__(self, chromosome, fitness, fitness_names):
         
-        for val in value_list:
-            assert type(val) == str
-
-        for name in names:
-            assert type(name) == str
+        for val in chromosome:
+            assert type(val) == VariableObject
+        #for name in names:
+        #    assert type(name) == str
                         
-        for ind in indices:
-            assert type(ind) == int
+        #for ind in indices:
+        #    assert type(ind) == int
         
-        assert len(value_list) == len(names) == len(indices)
+        #assert len(chromosome) == len(names) == len(indices)
         #assert len(fitness) == len(fitness_names)
         
         # Assign values to self(list)
-        super(Individual2, self).__init__(value_list)
+        #print([gene.value for gene in chromosome])
+        #print([type(gene.value) for gene in chromosome])
+        #print([gene.vtype for gene in chromosome])
         
-        self.indices = indices
-        self.names = names
-        self.vtypes = vtypes
-        self.fitness = fitness
-        self.fitness_names = fitness_names
+        list_items = list()
+        for gene in chromosome:
+            if gene.vtype == 'float':
+                list_items.append(float(gene.val_str))
+            elif gene.vtype == 'string':
+                list_items.append(gene.val_str)
+            else:
+                raise Exception("{}".format(gene.vtype))
+        super(Individual2, self).__init__(list_items)
+        
+        self.chromosome = chromosome
+        
+        #print(self)
+        #raise
+        
+        #self.indices = indices
+        #self.names = names
+        #self.vtypes = vtypes
+        #self.fitness = fitness
+        #self.fitness_names = fitness_names
         
         # Each item of the list needs it's own attribute defined in class
         #for name, index in zip(names,indices):
@@ -741,22 +819,26 @@ class Individual2(list):
         But this would be expensive and complicated to store in a database
         The hash compresses this information to an integer value which should have no collisions
         """
-        return hash(tuple(zip(self.names,self[:])))
+        return hash(tuple(zip(self[:])))
 
     #def __repr__(self):
     #    return(self.__str__())
     
     def __str__(self):
-        name_idx_val = zip(self.names, self.indices, self)
-
-        variable_str = ", ".join(["{}[{}]={}".format(*triplet) for triplet in name_idx_val])
-
-        fitness_str = "{}={}".format(self.fitness_names,self.fitness)
         
-        #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.fitness)])
         
-        this_str = "{} {} ({}) -> {}".format(self.__hash__(),variable_str,",".join(self.vtypes),fitness_str)
-        return(this_str)
+        return ", ".join([var.this_val_str() for var in self.chromosome]) + ", ".join([str(id(gene)) for gene in self.chromosome])
+        
+#         name_idx_val = zip(self.names, self.indices, self)
+# 
+#         variable_str = ", ".join(["{}[{}]={}".format(*triplet) for triplet in name_idx_val])
+# 
+#         fitness_str = "{}={}".format(self.fitness_names,self.fitness)
+#         
+#         #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.fitness)])
+#         
+#         this_str = "{} {} ({}) -> {}".format(self.__hash__(),variable_str,",".join(self.vtypes),fitness_str)
+#         return(this_str)
     
     def assign_fitness(self):
         #print()

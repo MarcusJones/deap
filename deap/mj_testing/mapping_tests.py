@@ -158,6 +158,12 @@ class MappingPopulationTests2(unittest.TestCase):
     def setUp(self):
         #print "**** TEST {} ****".format(whoami())
         myLogger.setLevel("CRITICAL")
+
+        self.engine = sa.create_engine('sqlite:///:memory:', echo=0)
+        #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
+        Session = sa.orm.sessionmaker(bind=self.engine)
+        self.session = Session()
+        logging.debug("Initialized session {} with SQL alchemy version: {}".format(self.engine, sa.__version__))
         
         NDIM = 3
         BOUND_LOW, BOUND_UP = 0.0, 1.0
@@ -168,7 +174,8 @@ class MappingPopulationTests2(unittest.TestCase):
         basis_variables = list()
         for i in range(NDIM):
             basis_variables.append(Variable.from_range("{}".format(i), 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR))
-        
+        for var in basis_variables:
+            self.session.add_all(var.variable_tuple)        
 
         thisDspace = DesignSpace(basis_variables)
         D1 = thisDspace
@@ -178,7 +185,9 @@ class MappingPopulationTests2(unittest.TestCase):
         obj2 = Objective('obj2', 'Min')
         objs = [obj1, obj2]
         obj_space1 = ObjectiveSpace(objs)
-
+        for obj in objs:
+            self.session.add(obj)
+            
         self.mapping = Mapping(D1, obj_space1)
         
         creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
@@ -188,12 +197,10 @@ class MappingPopulationTests2(unittest.TestCase):
 
         myLogger.setLevel("DEBUG")
         
-        
-        self.engine = sa.create_engine('sqlite:///:memory:', echo=0)
-        #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
-        Session = sa.orm.sessionmaker(bind=self.engine)
-        self.session = Session()
-        logging.debug("Initialized session {} with SQL alchemy version: {}".format(self.engine, sa.__version__))
+        DB_Base.metadata.create_all(self.engine)    
+        self.session.add_all(basis_variables)        
+        self.session.commit()
+
 
     def test020_send_pop_DB(self):
         print("**** TEST {} ****".format(whoami()))
@@ -209,25 +216,38 @@ class MappingPopulationTests2(unittest.TestCase):
         DB_Base.metadata.create_all(self.engine)    
         self.session.commit() 
         
-        
-        #print(Results())
-        #self.session.add(Results())
-        
         with loggerCritical():
-            pop = self.mapping.get_random_population(20)
-            
-        this_res = convert_individual_DB(Results,pop[0])
-        self.session.add(this_res)
+            pop = self.mapping.get_random_population(50)
+
+        results = [convert_individual_DB(Results,ind) for ind in set(pop)]
+
+        self.session.add_all(results)
         self.session.commit()
 
-        util_sa.print_all_pretty_tables(self.engine)
-
+        #util_sa.print_all_pretty_tables(self.engine)
         
-        #with loggerCritical():
-        #    pop = self.mapping.get_random_population(20)
+        #print(type(self.mapping.design_space.basis_set[0]))
+        
+        #raise
+        #self.mapping.design_space.basis_set
+        
+        val_classes = [var.ValueClass for var in self.mapping.design_space.basis_set]
+        qry = self.session.query(Results, *val_classes)
+        for var in self.mapping.design_space.basis_set:
+            #print("J")
+            qry = qry.join(var.ValueClass)
+        
+        print(type(qry))
+        
+        for res in qry.all():
+            print(res[0])
+            print(type(res))
+            print(dir(res))
+            #print(dir(res))
+            #print(res.var_c_0)
+            #raise
+            #print(res)
             
-        #for ind in pop:
-        #    generate_ORM_individual(self.mapping)
 
-
-        
+                    
+            
