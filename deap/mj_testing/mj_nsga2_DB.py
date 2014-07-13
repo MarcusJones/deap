@@ -137,18 +137,9 @@ def main(seed=None):
     session.commit()
     #util_sa.print_all_pretty_tables(engine, 20)
 
-    #raise
     #===========================================================================
-    # Statistics and logging
+    # Fitness
     #===========================================================================
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean, axis=0)
-    stats.register("std", np.std, axis=0)
-    stats.register("min", np.min, axis=0)
-    stats.register("max", np.max, axis=0)
-    logbook = tools.Logbook()
-    logbook.header = "gen", "evals", "std", "min", "avg", "max"
-
     creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
 
     toolbox = base.Toolbox()

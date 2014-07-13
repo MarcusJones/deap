@@ -1,0 +1,39 @@
+A class with no ORM:
+
+<class 'test_orm.AddressNO_ORM'>
+__class__
+__delattr__
+__dict__
+__doc__
+__format__
+__getattribute__
+__hash__
+__init__
+__module__
+__new__
+__reduce__
+__reduce_ex__
+__repr__
+__setattr__
+__sizeof__
+__str__
+__subclasshook__
+__tablename__
+__weakref__
+email_address
+id
+user
+user_id
+
+
+If derived from Base, the fol attributes are added;
+
+<class 'test_orm.Address'>
+metadata
+__table__
+__mapper__
+_decl_class_registry
+_sa_class_manager
+
+
+

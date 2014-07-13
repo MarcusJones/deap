@@ -182,46 +182,36 @@ class Mapping(object):
         self.fitness = fitness
         logging.info("This mapping will produce fitness of class {}".format(fitness.__name__))
 
-    #--- Database
-    def generate_individuals_table(self, metadata):
-        columns = list()
-        columns.append(sa.Column('hash', sa.Integer, primary_key=True))
-        columns.append(sa.Column('start', sa.DateTime))
-        columns.append(sa.Column('finish', sa.DateTime))    
-        for var in self.design_space.basis_set:
-            columns.append(sa.Column("{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ))
-        for obj in self.objective_space.objective_names:
-            columns.append(sa.Column("{}".format(obj), sa.Float, nullable = False,  ))
-            columns.append(sa.Column("{}".format(obj), sa.Float))
-        
-        tab_results = sa.Table('results', metadata, *columns)
-        
-        return(tab_results)  
-
-
     # Generating points in the space-------------
     def get_random_mapping(self):
         """
         Randomly sample all basis_set vectors, return a random variable vector
         """
-
+        
         chromosome = list()
         indices = list()
+        vtypes = list()
         labels = list()
         for var in self.design_space.basis_set:
             var.get_random()
-            chromosome.append(var.value)
+            chromosome.append(var.value_str)
             indices.append(var.index)
+            vtypes.append(var.vtype)
             labels.append(var.name)
-            
-        this_ind = self.Individual(items=chromosome, 
-                                    names=labels, 
+        
+        logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))
+        #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
+        
+        
+        this_ind = self.Individual(value_list=chromosome, 
+                                    names=labels,
+                                    vtypes = vtypes,
                                     indices=indices, 
                                     fitness_names = self.objective_space.objective_names, 
                                     fitness=self.fitness()
                                     )
         
-        #logging.debug("Returned random individual {}".format(this_ind))
+        logging.debug("Returned random individual {}".format(this_ind))
         
         return this_ind
 
@@ -301,10 +291,10 @@ class Variable(DB_Base):
     __tablename__ = 'Variables'
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    type = Column(String)
+    vtype = Column(String)
 
-    def __init__(self,name, variable_tuple, ordered=True, type = "String"):
-        self.type = type
+    def __init__(self,name, vtype, variable_tuple, ordered):
+        self.vtype = vtype
         self.name = name
         
         if isinstance(variable_tuple,tuple):
@@ -363,9 +353,13 @@ class Variable(DB_Base):
     @property
     def value(self):
         return self.variable_tuple[self.index]
-
+    
+    @property
+    def value_str(self):
+        return str(self.variable_tuple[self.index])
+    
     @classmethod
-    def from_range(cls, name, lower, resolution, upper):
+    def from_range(cls, name, vtype, lower, resolution, upper):
         """
         Init overload - easy creation from a lower to upper decimal with a step size
         Arguments are string for proper decimal handling!
@@ -392,21 +386,21 @@ class Variable(DB_Base):
         length = (upper - lower) / resolution + 1
         vTuple = [lower + i * resolution for i in range(0,length)]
 
-        return cls(name, vTuple,True)
+        return cls(name, vtype, vTuple,True)
 
     @classmethod
-    def ordered(cls,name, vTuple):
+    def ordered(cls,name, vtype, vTuple):
         """
         Init overload - the variable is ordered (default)
         """
-        return cls(name, vTuple,True)
+        return cls(name, vtype, vTuple,True)
 
     @classmethod
-    def unordered(cls,name, vTuple):
+    def unordered(cls,name, vtype, vTuple):
         """
         Init overload - the variable has no ordering
         """
-        return cls(name, vTuple,False)
+        return cls(name, vtype, vTuple,False)
 
     def get_random(self):
         """
@@ -510,7 +504,7 @@ class Variable(DB_Base):
                                  shortTupleString,
                                  ordStr,
                                  id(self),
-                                 self.type,
+                                 self.vtype,
                                  )
 
 
@@ -641,28 +635,83 @@ class DesignSpace(object):
         return len(self.basis_set)
 
 
+#--- Database
+def generate_individuals_table(mapping):
+    columns = list()
+    columns.append(sa.Column('hash', sa.Integer, primary_key=True))
+    columns.append(sa.Column('start', sa.DateTime))
+    columns.append(sa.Column('finish', sa.DateTime))    
+    for var in mapping.design_space.basis_set:
+        columns.append(sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ))
+    for obj in mapping.objective_space.objective_names:
+        #columns.append(sa.Column("{}".format(obj), sa.Float, nullable = False,  ))
+        columns.append(sa.Column("obj_c_{}".format(obj), sa.Float))
+    
+    tab_results = sa.Table('Results', DB_Base.metadata, *columns)
+    
+    return(tab_results)  
+
+def generate_ORM_individual(mapping):
+    
+    attr_dict = {
+                    '__tablename__' : 'Results',
+                    'hash' : sa.Column(Integer, primary_key=True),
+                    'start' : sa.Column('start', sa.DateTime),
+                    'finish' : sa.Column('finish', sa.DateTime),
+                    
+                }
+    for var in mapping.design_space.basis_set:
+        attr_dict["var_c_{}".format(var.name)] =sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ) 
+    for obj in mapping.objective_space.objective_names:
+        attr_dict["obj_c_{}".format(obj)] =  sa.Column("obj_c_{}".format(obj), sa.Float)
+    
+    ThisClass = type('Results',(object,),attr_dict)
 
 
-#class Individual2(list, DB_Base):
+    return ThisClass
+
+
+def convert_individual_DB(ResultsClass,ind):
+    this_res = ResultsClass()
+    this_res.hash = ind.hash
+    
+    for name,index,vtype in zip(ind.names,ind.indices,ind.vtypes):
+        setattr(this_res, "var_c_{}".format(name),index)
+    return this_res
+
+
 class Individual2(list):
-    def __init__(self, value_list, names, indices, fitness, fitness_names):
+    
+    def __init__(self, value_list, indices, names, vtypes, fitness, fitness_names):
         
-        if not names:
-            names = [str(i) for i in range(len(value_list))]
-        assert len(value_list) == len(names)
+        for val in value_list:
+            assert type(val) == str
+
+        for name in names:
+            assert type(name) == str
+                        
+        for ind in indices:
+            assert type(ind) == int
         
-        self.names = names
-        self.fitness = fitness
-        self.fitness_names = fitness_names
+        assert len(value_list) == len(names) == len(indices)
+        #assert len(fitness) == len(fitness_names)
+        
+        # Assign values to self(list)
         super(Individual2, self).__init__(value_list)
         
-        # Each item of the list needs it's own attribute defined in class
-        for name, index in zip(names,indices):
-            setattr(self, name, index)
+        self.indices = indices
+        self.names = names
+        self.vtypes = vtypes
+        self.fitness = fitness
+        self.fitness_names = fitness_names
         
-        # Each item of fitness
-        for name in self.fitness_names:
-            setattr(self, name, None)
+        # Each item of the list needs it's own attribute defined in class
+        #for name, index in zip(names,indices):
+        #    setattr(self, name, index)
+        
+        ## Each item of fitness
+        #for name in self.fitness_names:
+        #    setattr(self, name, None)
         
         
         #print(self.obj1)
@@ -672,7 +721,7 @@ class Individual2(list):
         #raise
         
         self.hash = self.__hash__()
-        self.value_index_str = str(indices)
+        #self.value_index_str = str(indices)
         
         logging.debug("Individual instantiated; {}".format(self))
     
@@ -680,8 +729,6 @@ class Individual2(list):
         fit_vals = list()
         for name in self.fitness_names:
             fit_vals.append(getattr(self, name))
-        #print(self.)
-        #print(self.)
         print(self)
         print(self.obj1)
         print(fit_vals)
@@ -696,15 +743,19 @@ class Individual2(list):
         """
         return hash(tuple(zip(self.names,self[:])))
 
-    def __repr__(self):
-        return(self.__str__())
+    #def __repr__(self):
+    #    return(self.__str__())
     
     def __str__(self):
-        pairs = zip(self.names, self)
-        variable_pairs = (["{}={}".format(pair[0],pair[1]) for pair in pairs])
-        #fitness_pairs
-        this_str = "{} [{}] -> {}: {}".format(self.__hash__(),",".join(variable_pairs), self.fitness.__class__.__name__, self.fitness)
+        name_idx_val = zip(self.names, self.indices, self)
 
+        variable_str = ", ".join(["{}[{}]={}".format(*triplet) for triplet in name_idx_val])
+
+        fitness_str = "{}={}".format(self.fitness_names,self.fitness)
+        
+        #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.fitness)])
+        
+        this_str = "{} {} ({}) -> {}".format(self.__hash__(),variable_str,",".join(self.vtypes),fitness_str)
         return(this_str)
     
     def assign_fitness(self):
@@ -713,7 +764,9 @@ class Individual2(list):
         #print(self.fitness)
         for name, fit in zip(self.fitness_names,self.fitness.values):
             setattr(self, name, fit)
-        #setattr(self, name, fit)        
+        #setattr(self, name, fit)       
+        
+         
 class Individual(object):
     
     """
