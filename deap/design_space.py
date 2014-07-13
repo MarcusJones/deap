@@ -736,6 +736,16 @@ def convert_individual_DB(ResultsClass,ind):
     
     for gene in ind.chromosome:
         setattr(this_res, "var_c_{}".format(gene.name),gene.index)
+
+    #print(ind.fitness.names)
+    #print(ind.fitness.values)
+            
+    #raise
+
+    for name,val in zip(ind.fitness.names,ind.fitness.values):
+        setattr(this_res, "obj_c_{}".format(name),val)
+    #    
+    #setattr(this_res, "var_c_{}".format(gene.name),gene.index)
     return this_res
 
 

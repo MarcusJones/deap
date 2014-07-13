@@ -91,7 +91,8 @@ class MappingBasicTests(unittest.TestCase):
         
         this_mapping = Mapping(self.D1, self.obj_space1)
         
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = ("A", "B"))
         
         this_mapping.assign_individual(Individual2)
         this_mapping.assign_fitness(creator.FitnessMin)
@@ -300,7 +301,11 @@ class TestMate(unittest.TestCase):
         
         # Mapping
         self.mapping = Mapping(D1, obj_space1)
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+
+        #print([obj[0] for obj in ])
+        #raise        
+        
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = self.mapping.objective_space.objective_names)
         self.mapping.assign_individual(Individual2)
         self.mapping.assign_fitness(creator.FitnessMin)
         
@@ -354,5 +359,5 @@ class TestMate(unittest.TestCase):
         logging.debug("Committed {} new individuals to DB".format(eval_count))
 
 
-                    
+        util_sa.print_all_pretty_tables(self.engine)
             

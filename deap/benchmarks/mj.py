@@ -4,7 +4,7 @@ from math import sin, cos, pi, exp, e, sqrt
 from operator import mul
 from functools import reduce
 from decimal import Decimal
-
+import logging
 
 def mj_zdt1_decimal(individual):
     """ZDT1 multiobjective function.
@@ -42,4 +42,7 @@ def mj_zdt1_decimal(individual):
     f1 = values[0]
     f2 = g * (1 - sqrt(f1/g))
     individual.fitness.values = (f1, f2)
+    
+    logging.debug("Evaluated {} -> {}".format(values, individual.fitness.values))
+    
     return individual
