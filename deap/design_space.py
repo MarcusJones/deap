@@ -183,7 +183,7 @@ class Mapping(object):
         logging.info("This mapping will produce fitness of class {}".format(fitness.__name__))
 
     # Generating points in the space-------------
-    def get_random_mapping(self):
+    def get_random_mapping(self, flg_verbose = False):
         """
         Randomly sample all basis_set vectors, return a random variable vector
         """
@@ -198,8 +198,7 @@ class Mapping(object):
             #indices.append(var.index)
             #vtypes.append(var.vtype)
             #labels.append(var.name)
-        
-        logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))
+
         #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
         
         
@@ -210,8 +209,9 @@ class Mapping(object):
                                     fitness_names = self.objective_space.objective_names, 
                                     fitness=self.fitness()
                                     )
-        
-        logging.debug("Returned random individual {}".format(this_ind))
+        if flg_verbose:
+            logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
+            logging.debug("Returned random individual {}".format(this_ind))
         
         return this_ind
 
@@ -296,7 +296,7 @@ class VariableObject(object):
         self.index = index
         self.ordered = ordered
 
-        logging.debug("{}".format(self))
+        #logging.debug("{}".format(self))
 
     @property
     def val_str(self):
@@ -307,7 +307,7 @@ class VariableObject(object):
         """
         String for current name and current value
         """
-        return "{}[{}] := {}".format(self.name, self.index, self.val_str)
+        return "{}[{}]={}".format(self.name, self.index, self.val_str)
 
 
 class Variable(DB_Base):
@@ -827,7 +827,8 @@ class Individual2(list):
     def __str__(self):
         
         
-        return ", ".join([var.this_val_str() for var in self.chromosome]) + ", ".join([str(id(gene)) for gene in self.chromosome])
+        return "{:>12}; {}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]))
+                              #str() + ) #+ ", ".join([str(id(gene)) for gene in self.chromosome])
         
 #         name_idx_val = zip(self.names, self.indices, self)
 # 

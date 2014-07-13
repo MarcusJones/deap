@@ -38,7 +38,7 @@ import matplotlib.pyplot as plt
 #from math import sqrt
 import utility_SQL_alchemy as util_sa
 #--- Import design space
-from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective
+from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective, generate_individuals_table
 from deap.design_space import Individual2
 from deap.mj_utilities.db_base import DB_Base
 
@@ -96,7 +96,7 @@ def main(seed=None):
     var_names = ['var'+'a'*(num+1) for num in range(NDIM)]    
     #myLogger.setLevel("CRITICAL")
     with loggerCritical():
-        basis_set = [Variable.from_range(name, BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
+        basis_set = [Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
     #myLogger.setLevel("DEBUG")
     
     # Add to DB
@@ -127,7 +127,7 @@ def main(seed=None):
     # Mapping and results table
     #===========================================================================
     mapping = Mapping(thisDspace, this_obj_space)
-    results_table = mapping.generate_individuals_table(DB_Base.metadata)
+    results_table = generate_individuals_table(mapping)
     sa.orm.mapper(Individual2, results_table) 
     
     #===========================================================================

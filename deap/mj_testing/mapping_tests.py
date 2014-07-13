@@ -22,6 +22,7 @@ import utility_SQL_alchemy as util_sa
 
 from UtilityLogger import loggerCritical
 from deap.mj_utilities.db_base import DB_Base
+import deap as dp
 
 #===============================================================================
 # Logging
@@ -239,15 +240,91 @@ class MappingPopulationTests2(unittest.TestCase):
         
         print(type(qry))
         
-        for res in qry.all():
-            print(res[0])
-            print(type(res))
-            print(dir(res))
+        for res, v1, v2, v3 in qry.all():
+            print(res)
+            #print(res[0])
+            #print(type(res))
+            #print(dir(res))
             #print(dir(res))
             #print(res.var_c_0)
             #raise
             #print(res)
             
+
+
+class TestMate(unittest.TestCase):
+    def setUp(self):
+        #print "**** TEST {} ****".format(whoami())
+        myLogger.setLevel("CRITICAL")
+        
+        #=======================================================================
+        # Parameters
+        #=======================================================================
+        NDIM = 3
+        BOUND_LOW, BOUND_UP = 0.0, 1.0
+        BOUND_LOW_STR, BOUND_UP_STR = '0.0', '.2'
+        RES_STR = '0.10'
+        
+        #=======================================================================
+        # Create DB
+        #=======================================================================
+        self.engine = sa.create_engine('sqlite:///:memory:', echo=0)
+        #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
+        Session = sa.orm.sessionmaker(bind=self.engine)
+        self.session = Session()
+        logging.debug("Initialized session {} with SQL alchemy version: {}".format(self.engine, sa.__version__))
+       
+        #=======================================================================
+        # Create mapping
+        #=======================================================================
+        # Variables
+        basis_variables = list()
+        for i in range(NDIM):
+            basis_variables.append(Variable.from_range("{}".format(i), 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR))
+        for var in basis_variables:
+            self.session.add_all(var.variable_tuple)    # DB ADD vectors        
+        
+        self.session.add_all(basis_variables)   # DB ADD variables
+            
+        # DSpace
+        thisDspace = DesignSpace(basis_variables)
+        D1 = thisDspace
+        
+        # OSpace
+        obj1 = Objective('obj1', 'Max')
+        obj2 = Objective('obj2', 'Min')
+        objs = [obj1, obj2]
+        obj_space1 = ObjectiveSpace(objs)
+        for obj in objs:
+            self.session.add(obj)   # DB ADD
+        
+        # Mapping
+        self.mapping = Mapping(D1, obj_space1)
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+        self.mapping.assign_individual(Individual2)
+        self.mapping.assign_fitness(creator.FitnessMin)
+        
+        #=======================================================================
+        # Results is composed of a class and a table, mapped together        
+        #=======================================================================
+        res_ORM_table = generate_individuals_table(self.mapping)
+        Results = generate_ORM_individual(self.mapping)
+        sa.orm.mapper(Results, res_ORM_table) 
+        
+        # 
+        DB_Base.metadata.create_all(self.engine)    
+        self.session.commit() 
+        
+        myLogger.setLevel("DEBUG")
+
+    def test010_mate(self):
+        print("**** TEST {} ****".format(whoami()))
+        pop = self.mapping.get_random_population(20)
+        toolbox = dp.base.Toolbox()
+        print(dp)
+        print(dp.benchmarks)
+        from deap import benchmarks
+        toolbox.register("evaluate", dp.benchmarks.mj_zdt1_decimal)
 
                     
             
