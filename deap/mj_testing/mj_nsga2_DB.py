@@ -50,7 +50,6 @@ import array
 from deap import benchmarks
 from deap.benchmarks.tools import diversity, convergence
 from deap import creator
-from deap import tools
 from deap import algorithms
 from deap import base
 from deap import benchmarks
@@ -68,6 +67,11 @@ from sqlalchemy.orm.exc import MultipleResultsFound,NoResultFound
 #---
 #def 
 
+def printpop(msg,pop):
+    print('*****************', msg)
+    for ind in pop:
+        print(ind)
+
 
 def main(seed=None):
 
@@ -77,19 +81,31 @@ def main(seed=None):
     session = Session()
     logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
 
+    #===========================================================================
+    # Statistics
+    #===========================================================================
+    stats = tools.Statistics(lambda ind: ind.Fitness.values)
+    stats.register("avg", np.mean, axis=0)
+    stats.register("std", np.std, axis=0)
+    stats.register("min", np.min, axis=0)
+    stats.register("max", np.max, axis=0)
+    
+    logbook = tools.Logbook()
+    logbook.header = "gen", "evals", "std", "min", "avg", "max"
+    
+
     
     #===========================================================================
     # Parameters
     #===========================================================================
-    NDIM = 3
+    NDIM = 30
     BOUND_LOW, BOUND_UP = 0.0, 1.0
-    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '.2'
-    RES_STR = '0.10'
-    NGEN = 10
+    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
+    RES_STR = '0.001'
+    NGEN = 100
     POPSIZE = 4*2
     MU = 100
     CXPB = 0.9
-    range(NDIM)
 
     #===========================================================================
     # Variables and design space
@@ -159,7 +175,7 @@ def main(seed=None):
     #                 low=BOUND_LOW, up=BOUND_UP, eta=20.0)
     toolbox.register("mutate", tools.mj_string_mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
                      eta=20.0, indpb=1.0/NDIM)
-    toolbox.register("select", tools.selNSGA2)
+    toolbox.register("select", tools.mj_selNSGA2)
 
     #===========================================================================
     # Create the population
@@ -182,6 +198,7 @@ def main(seed=None):
     # Evaluate first pop
     #===========================================================================
     eval_count = 0
+    
     final_pop = list()
     with loggerCritical():
         # Only evaluate each individual ONCE
@@ -192,7 +209,7 @@ def main(seed=None):
                 query = session.query(Results).filter(Results.hash == ind.hash)
                 res = query.one()
                 ind = convert_DB_individual(res, mapping)
-                
+                #final_pop.append(ind)
                 logging.debug("Retrieved {}".format(ind))
                 
             # Otherwise, do a fresh evaluation
@@ -218,25 +235,27 @@ def main(seed=None):
     #===========================================================================
     # Selection
     #===========================================================================
-    
-    for ind in pop:
-        print(ind)
-    
     pop = toolbox.select(pop, len(pop))
-    logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
 
+    logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
+    record = stats.compile(pop)
+    logbook.record(gen=0, evals=eval_count, **record)
+    print(logbook.stream)
+    
     for gen in range(1, NGEN):
+        
         #=======================================================================
-        # Vary the population
+        # Select the population
         #=======================================================================
         offspring = tools.selTournamentDCD(pop, len(pop))
-           
-        #offspring = [toolbox.clone(ind) for ind in offspring]
-        #for ind in offspring:
-        #    print(ind)         
-        #raise Exception
+        offspring = [mapping.clone_ind(ind) for ind in offspring]
+        #logging.debug("Selected and cloned {} offspring".format(len(offspring)))
         
-        logging.debug("Selected and cloned {} offspring".format(len(offspring)))
+        #printpop('Offspring',pop)
+        
+        #=======================================================================
+        # Mate and mutate
+        #=======================================================================
         pairs = zip(offspring[::2], offspring[1::2])
         for ind1, ind2 in pairs:
             if random.random() <= CXPB:
@@ -245,50 +264,79 @@ def main(seed=None):
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
             del ind1.Fitness.values, ind2.Fitness.values
-        logging.debug("Operated over {} pairs".format(len(pairs)))
+        #logging.debug("Operated over {} pairs".format(len(pairs)))
 
-        # Evaluate the individuals with an invalid Fitness
-        invalid_ind = [ind for ind in offspring if not ind.Fitness.valid]
-        processed_ind = toolbox.map(toolbox.evaluate, invalid_ind)
-        logging.debug("Evaluated {} individuals".format(len(processed_ind)))
+        #=======================================================================
+        # Evaluate the individuals
+        #=======================================================================
+        eval_offspring = list()
+        eval_count = 0
+        retrieval_count = 0
+        with loggerCritical():
+            for ind in offspring:
+                
+                # First, check if in DB
+                try:
+                    query = session.query(Results).filter(Results.hash == ind.hash)
+                    res = query.one()
+                    ind = convert_DB_individual(res, mapping)
+                    #eval_offspring.append(ind)
+                    #logging.debug("Retrieved {}".format(ind))
+                    retrieval_count += 1
+                # Otherwise, do a fresh evaluation
+                except sa.orm.exc.NoResultFound:
+                    ind = toolbox.evaluate(ind)
+                    #logging.debug("Evaluated {}".format(ind))
+                    eval_count += 1
+                    res = convert_individual_DB(Results,ind)
+                    session.add(res)
+                    
+                eval_offspring.append(ind)
+        #logging.debug("Retrieved {}, Evaluated {}".format(retrieval_count,eval_count))
 
-        #raise
-        #for ind, fit in zip(invalid_ind, fitnesses):
-        #    ind.Fitness.values = fit
+        session.commit()
 
+        combined_pop = pop + eval_offspring
+
+        
+        #printpop('Parents',pop)
+        
         # Select the next generation population
-        pop = toolbox.select(pop + offspring, MU)
+        pop = toolbox.select(combined_pop, MU)
         record = stats.compile(pop)
-        logbook.record(gen=gen, evals=len(invalid_ind), **record)
+        logbook.record(gen=gen, evals=eval_count, **record)
         print(logbook.stream)
+        
+        
 
-    ###
-    with open(r"C:\Users\jon\git\deap1\examples\ga\pareto_front\zdt1_front.json") as optimal_front_data:
-        optimal_front = json.load(optimal_front_data)
-    # Use 500 of the 1000 points in the json file
-    optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
+    util_sa.print_all_pretty_tables(engine, 20000)
 
-    pop.sort(key=lambda x: x.Fitness.values)
-    
-    util_sa.print_all_pretty_tables(engine, 20)
-    
-    
-    
     return pop, stats
-    #print(stats)
-    #print("Convergence: ", convergence(pop, optimal_front))
-    #print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
 
-if __name__ == "__main__":
+def showconvergence(pop):
+    pop.sort(key=lambda x: x.Fitness.values)
     with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
         optimal_front = json.load(optimal_front_data)
         
     # Use 500 of the 1000 points in the json file
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
-    pop, stats = main()
+
     pop.sort(key=lambda x: x.Fitness.values)
 
-    #print(stats)
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+    
+    
+if __name__ == "__main__":
+
+    import cProfile
+    path_profile  = r"C:\\ExportDir\testprofile.txt"
+    #cProfile.run('main()', filename=path_profile)
+    
+
+    pop, stats = main()
+    #showconvergence(pop)
+    #print(stats)
+
+

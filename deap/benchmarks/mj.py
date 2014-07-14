@@ -42,10 +42,10 @@ def mj_zdt1_decimal(individual):
     f1 = values[0]
     f2 = g * (1 - sqrt(f1/g))
     
-    this_fit = individual.Fitness()
-    this_fit.setValues((f1, f2))
+    #this_fit = individual.Fitness
+    individual.Fitness.setValues((f1, f2))
     #print(this_fit)
-    individual.Fitness = this_fit
+    #individual.Fitness = this_fit
     #raise Exception
     #individual.Fitness.values = (f1, f2)
     

@@ -76,60 +76,25 @@ def generate_chromosome(basis_set):
 
 #--- Database
 def convert_DB_individual(res, mapping):
-    #print(res)
-    #for it in dir(res):
-    #    print(it)
-    
-    
-    
+   
     chromosome = list()
-    #indices = list()
-    #vtypes = list()
-    #labels = list()
     for var in mapping.design_space.basis_set:
-        #print(var.name)
-        
         index = getattr(res, "var_c_{}".format(var.name))
         this_var = var.get_indexed_obj(index)
         chromosome.append(this_var)
-        #indices.append(var.index)
-        #vtypes.append(var.vtype)
-        #labels.append(var.name)
 
-    #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
-    #print(mapping.objective_space)
-    #for obj in mapping.objective_space.names:
-    #    print(obj)
     fitvals = list()
     for name in mapping.objective_space.objective_names:
-        #print(name)
         val = getattr(res, "obj_c_{}".format(name))
         fitvals.append(val)
-    #print(mapping.Fitness)
-    #print(type(mapping.Fitness(fitvals)))
-    this_fit = mapping.Fitness(values=tuple(fitvals))
+
     this_fit = mapping.Fitness()
     this_fit.setValues(fitvals)
-    #print(this_fit)
-    #print(this_fit.values)
-    #print(this_fit.weights)
-    #print(this_fit.valid)
-    #print(type(this_fit))
-    #this_fit.values = tuple(fitvals)
-    #print(this_fit)
-    #print(type(this_fit))
-    #print(this_fit.values)
-    #raise Exception
+
     this_ind = mapping.Individual(chromosome=chromosome, 
-                                #names=labels,
-                                #vtypes = vtypes,
-                                #indices=indices, 
-                                #fitness_names = self.objective_space.objective_names, 
                                 fitness=this_fit
                                 )
-    
-    #raise Exception
-    #convert_DB_individual
+
     return this_ind
 
 def convert_individual_DB(ResultsClass,ind):
@@ -320,7 +285,10 @@ class Mapping(object):
     def assign_fitness(self, Fitness):
         self.Fitness = Fitness
         logging.info("This mapping will produce Fitness of class {}".format(Fitness.__name__))
-
+    
+    def clone_ind(self, ind):
+        return Individual2(ind.chromosome, self.Fitness())
+    
     # Generating points in the space-------------
     def get_random_mapping(self, flg_verbose = False):
         """
@@ -821,20 +789,7 @@ class Individual2(list):
         
         for val in chromosome:
             assert type(val) == VariableObject
-        #for name in names:
-        #    assert type(name) == str
-                        
-        #for ind in indices:
-        #    assert type(ind) == int
-        
-        #assert len(chromosome) == len(names) == len(indices)
-        #assert len(Fitness) == len(fitness_names)
-        
-        # Assign values to self(list)
-        #print([gene.value for gene in chromosome])
-        #print([type(gene.value) for gene in chromosome])
-        #print([gene.vtype for gene in chromosome])
-        
+
         list_items = list()
         for gene in chromosome:
             if gene.vtype == 'float':
@@ -846,38 +801,13 @@ class Individual2(list):
         super(Individual2, self).__init__(list_items)
         
         self.chromosome = chromosome
-        
         self.Fitness = fitness
-        #print(self)
-        #raise
-        
-        #self.indices = indices
-        #self.names = names
-        #self.vtypes = vtypes
-        #self.Fitness = Fitness
-        #self.fitness_names = fitness_names
-        
-        # Each item of the list needs it's own attribute defined in class
-        #for name, index in zip(names,indices):
-        #    setattr(self, name, index)
-        
-        ## Each item of Fitness
-        #for name in self.fitness_names:
-        #    setattr(self, name, None)
-        
-        
-        #print(self.obj1)
-        #for name, fit in zip(fitness_names,Fitness):
-        #    setattr(self, name, fit)            
-            #print(name, index)
-        #raise
-        
         self.hash = self.__hash__()
-        #self.value_index_str = str(indices)
         
-        logging.debug("Individual instantiated; {}".format(self))
+        #logging.debug("Individual instantiated; {}".format(self))
     
     def recreate_fitness(self):
+        raise
         fit_vals = list()
         for name in self.fitness_names:
             fit_vals.append(getattr(self, name))
@@ -914,14 +844,15 @@ class Individual2(list):
 #         return(this_str)
     
     def assign_fitness(self):
+        raise
         #print()
         #print(self.fitness_names)
         #print(self.Fitness)
         for name, fit in zip(self.fitness_names,self.Fitness.values):
             setattr(self, name, fit)
         #setattr(self, name, fit)       
-        
-         
+
+  
 class Individual(object):
     
     """

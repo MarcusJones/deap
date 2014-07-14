@@ -177,7 +177,7 @@ class Fitness(object):
         if len(values) > 0:
             self.values = values
         
-        logging.debug("New fitness {}".format(self))
+        #logging.debug("New fitness {}".format(self))
         
     def getValues(self):
         try:
