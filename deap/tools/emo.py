@@ -12,6 +12,11 @@ import logging
 # Non-Dominated Sorting   (NSGA-II)  #
 ######################################
 
+
+__all__ = ['selNSGA2',  'selSPEA2', 'sortNondominated', 'sortLogNondominated',
+           'selTournamentDCD']
+
+
 def selNSGA2(individuals, k):
     """Apply NSGA-II selection operator on the *individuals*. Usually, the
     size of *individuals* will be larger than *k* because any individual
@@ -200,8 +205,8 @@ def identity(obj):
 def isDominated(wvalues1, wvalues2):
     """Returns whether or not *wvalues1* dominates *wvalues2*.
     
-    :param wvalues1: The weighted Fitness values that would be dominated.
-    :param wvalues2: The weighted Fitness values of the dominant.
+    :param wvalues1: The weighted fitness values that would be dominated.
+    :param wvalues2: The weighted fitness values of the dominant.
     :returns: :obj:`True` if wvalues2 dominates wvalues1, :obj:`False`
               otherwise.
     """
@@ -240,10 +245,10 @@ def sortLogNondominated(individuals, k, first_front_only=False):
     #Separate individuals according to unique fitnesses
     unique_fits = defaultdict(list)
     for i, ind in enumerate(individuals):
-        unique_fits[ind.Fitness.wvalues].append(ind)
+        unique_fits[ind.fitness.wvalues].append(ind)
     
     #Launch the sorting algorithm
-    obj = len(individuals[0].Fitness.wvalues)-1
+    obj = len(individuals[0].fitness.wvalues)-1
     fitnesses = unique_fits.keys()
     front = dict.fromkeys(fitnesses, 0)
 
@@ -455,7 +460,7 @@ def selSPEA2(individuals, k):
        strength Pareto evolutionary algorithm", 2001.
     """
     N = len(individuals)
-    L = len(individuals[0].Fitness.values)
+    L = len(individuals[0].fitness.values)
     K = math.sqrt(N)
     strength_fits = [0] * N
     fits = [0] * N
@@ -463,10 +468,10 @@ def selSPEA2(individuals, k):
     
     for i, ind_i in enumerate(individuals):
         for j, ind_j in enumerate(individuals[i+1:], i+1):
-            if ind_i.Fitness.dominates(ind_j.Fitness):
+            if ind_i.fitness.dominates(ind_j.fitness):
                 strength_fits[i] += 1
                 dominating_inds[j].append(i)
-            elif ind_j.Fitness.dominates(ind_i.Fitness):
+            elif ind_j.fitness.dominates(ind_i.fitness):
                 strength_fits[j] += 1
                 dominating_inds[i].append(j)
     
@@ -483,8 +488,8 @@ def selSPEA2(individuals, k):
             for j in xrange(i + 1, N):
                 dist = 0.0
                 for l in xrange(L):
-                    val = individuals[i].Fitness.values[l] - \
-                          individuals[j].Fitness.values[l]
+                    val = individuals[i].fitness.values[l] - \
+                          individuals[j].fitness.values[l]
                     dist += val * val
                 distances[j] = dist
             kth_dist = _randomizedSelect(distances, 0, N - 1, K)
@@ -505,8 +510,8 @@ def selSPEA2(individuals, k):
             for j in xrange(i + 1, N):
                 dist = 0.0
                 for l in xrange(L):
-                    val = individuals[chosen_indices[i]].Fitness.values[l] - \
-                          individuals[chosen_indices[j]].Fitness.values[l]
+                    val = individuals[chosen_indices[i]].fitness.values[l] - \
+                          individuals[chosen_indices[j]].fitness.values[l]
                     dist += val * val
                 distances[i][j] = dist
                 distances[j][i] = dist
@@ -591,8 +596,6 @@ def _partition(array, begin, end):
             return j
 
 
-__all__ = ['selNSGA2',  'selSPEA2', 'sortNondominated', 'sortLogNondominated',
-           ]
 
 
 

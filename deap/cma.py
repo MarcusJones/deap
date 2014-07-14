@@ -121,7 +121,7 @@ class Strategy(object):
         :param population: A list of individuals from which to update the
                            parameters.
         """
-        population.sort(key=lambda ind: ind.Fitness, reverse=True)
+        population.sort(key=lambda ind: ind.fitness, reverse=True)
         
         old_centroid = self.centroid
         self.centroid = numpy.dot(self.weights, population[0:self.mu])
@@ -204,7 +204,7 @@ class StrategyOnePlusLambda(object):
     A CMA-ES strategy that uses the :math:`1 + \lambda` paradigme.
     
     :param parent: An iterable object that indicates where to start the
-                   evolution. The parent requires a Fitness attribute.
+                   evolution. The parent requires a fitness attribute.
     :param sigma: The initial standard deviation of the distribution.
     :param parameter: One or more parameter to pass to the strategy as
                       described in the following table, optional.
@@ -261,12 +261,12 @@ class StrategyOnePlusLambda(object):
         :param population: A list of individuals from which to update the
                            parameters.
         """
-        population.sort(key=lambda ind: ind.Fitness, reverse=True)
-        lambda_succ = sum(self.parent.Fitness <= ind.Fitness for ind in population)
+        population.sort(key=lambda ind: ind.fitness, reverse=True)
+        lambda_succ = sum(self.parent.fitness <= ind.fitness for ind in population)
         p_succ = float(lambda_succ) / self.lambda_
         self.psucc = (1-self.cp)*self.psucc + self.cp*p_succ
         
-        if self.parent.Fitness <= population[0].Fitness:
+        if self.parent.fitness <= population[0].fitness:
             x_step = (population[0] - numpy.array(self.parent)) / self.sigma
             self.parent = copy.deepcopy(population[0])
             if self.psucc < self.pthresh:

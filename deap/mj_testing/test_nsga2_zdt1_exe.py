@@ -71,7 +71,7 @@ class test1(unittest.TestCase):
         mapping = Mapping(thisDspace, this_obj_space)
                 
         # Statistics and logging
-        stats = tools.Statistics(lambda ind: ind.Fitness.values)
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", np.mean, axis=0)
         stats.register("std", np.std, axis=0)
         stats.register("min", np.min, axis=0)
@@ -79,7 +79,7 @@ class test1(unittest.TestCase):
         logbook = tools.Logbook()
         logbook.header = "gen", "evals", "std", "min", "avg", "max"
         
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+        creator.create("FitnessMin", base.fitness, weights=(-1.0, -1.0))
         
         toolbox = base.Toolbox()
         
@@ -99,12 +99,12 @@ class test1(unittest.TestCase):
         pop = mapping.get_random_population(POPSIZE)
         
         # Evaluate first pop        
-        invalid_ind = [ind for ind in pop if not ind.Fitness.valid]
+        invalid_ind = [ind for ind in pop if not ind.fitness.valid]
         toolbox.map(toolbox.evaluate, invalid_ind)
         logging.debug("Evaluated {} individuals".format(len(invalid_ind)))
         
         # Check that they are evaluated
-        invalid_ind = [ind for ind in pop if not ind.Fitness.valid]
+        invalid_ind = [ind for ind in pop if not ind.fitness.valid]
         assert not invalid_ind
         
         pop = toolbox.select(pop, len(pop))
@@ -127,17 +127,17 @@ class test1(unittest.TestCase):
                     
                 toolbox.mutate(ind1)
                 toolbox.mutate(ind2)
-                del ind1.Fitness.values, ind2.Fitness.values
+                del ind1.fitness.values, ind2.fitness.values
             logging.debug("Operated over {} pairs".format(len(pairs)))
 
-            # Evaluate the individuals with an invalid Fitness
-            invalid_ind = [ind for ind in offspring if not ind.Fitness.valid]
+            # Evaluate the individuals with an invalid fitness
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
             processed_ind = toolbox.map(toolbox.evaluate, invalid_ind)
             logging.debug("Evaluated {} individuals".format(len(processed_ind)))
             
             #raise
             #for ind, fit in zip(invalid_ind, fitnesses):
-            #    ind.Fitness.values = fit
+            #    ind.fitness.values = fit
         
             # Select the next generation population
             pop = toolbox.select(pop + offspring, MU)
@@ -151,13 +151,13 @@ class test1(unittest.TestCase):
         # Use 500 of the 1000 points in the json file
         optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
                 
-        pop.sort(key=lambda x: x.Fitness.values)
+        pop.sort(key=lambda x: x.fitness.values)
         print(stats)
         print("Convergence: ", convergence(pop, optimal_front))
         print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
 
         
-        front = np.array([ind.Fitness.values for ind in pop])
+        front = np.array([ind.fitness.values for ind in pop])
         optimal_front = np.array(optimal_front)
         plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
         print(front)

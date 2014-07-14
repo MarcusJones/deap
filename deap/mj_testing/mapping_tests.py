@@ -93,14 +93,14 @@ class MappingBasicTests(unittest.TestCase):
         this_mapping = Mapping(self.D1, self.obj_space1)
         
 
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = ("A", "B"))
+        creator.create("FitnessMin", base.fitness, weights=(-1.0, -1.0), names = ("A", "B"))
         
         this_mapping.assign_individual(Individual2)
         this_mapping.assign_fitness(creator.FitnessMin)
         
         print(this_mapping)
         print("Design space; {}".format(this_mapping.design_space))
-        print("Fitness; {}".format(this_mapping.Fitness))
+        print("fitness; {}".format(this_mapping.fitness))
         print("Individual class; {}".format(this_mapping.Individual))
         print("First variable; {}".format(this_mapping.design_space.basis_set[0]))
         
@@ -135,7 +135,7 @@ class MappingPopulationTests(unittest.TestCase):
 
         self.mapping = Mapping(D1, obj_space1)
         
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+        creator.create("FitnessMin", base.fitness, weights=(-1.0, -1.0))
         
         self.mapping.assign_individual(Individual2)
         self.mapping.assign_fitness(creator.FitnessMin)
@@ -193,7 +193,7 @@ class MappingPopulationTests2(unittest.TestCase):
             
         self.mapping = Mapping(D1, obj_space1)
         
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+        creator.create("FitnessMin", base.fitness, weights=(-1.0, -1.0))
         
         self.mapping.assign_individual(Individual2)
         self.mapping.assign_fitness(creator.FitnessMin)
@@ -304,7 +304,7 @@ class TestMate(unittest.TestCase):
         self.mapping = Mapping(D1, obj_space1)
 
         
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = self.mapping.objective_space.objective_names)
+        creator.create("FitnessMin", base.fitness, weights=(-1.0, -1.0), names = self.mapping.objective_space.objective_names)
         self.mapping.assign_individual(Individual2)
         self.mapping.assign_fitness(creator.FitnessMin)
         

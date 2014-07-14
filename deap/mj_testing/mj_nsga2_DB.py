@@ -34,7 +34,7 @@ from UtilityLogger import loggerCritical
 #--- Import other
 import numpy as np
 import json
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 #from math import sqrt
 import utility_SQL_alchemy as util_sa
 #--- Import design space
@@ -42,26 +42,23 @@ from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Ob
 from deap.design_space import generate_individuals_table,generate_ORM_individual,convert_individual_DB, convert_DB_individual
 from deap.mj_utilities.db_base import DB_Base
 from deap.benchmarks import mj as mj
-from deap.benchmarks.old_init import zdt1
+#from deap.benchmarks.old_init import zdt1
 #--- Import deap
 import random
-from deap.mj_evaluators.zdt1_exe import evaluate
-import array
-from deap import benchmarks
+#from deap.mj_evaluators.zdt1_exe import evaluate
+#import array
 from deap.benchmarks.tools import diversity, convergence
-from deap import creator
-from deap import algorithms
+#from deap import algorithms
 from deap import base
-from deap import benchmarks
-from deap.benchmarks.tools import diversity, convergence
+#from deap import benchmarks
 from deap import creator
 from deap import tools
+#from deap import selTournamentDCD
 
 
 import sqlalchemy as sa
-import utility_SQL_alchemy as util_sa
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm.exc import MultipleResultsFound,NoResultFound
+#from sqlalchemy import Column, Integer, String
+#from sqlalchemy.orm.exc import MultipleResultsFound,NoResultFound
 
 
 #---
@@ -89,7 +86,7 @@ def main(seed=None):
     #===========================================================================
     # Statistics
     #===========================================================================
-    stats = tools.Statistics(lambda ind: ind.Fitness.values)
+    stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
     stats.register("std", np.std, axis=0)
     stats.register("min", np.min, axis=0)
@@ -159,7 +156,7 @@ def main(seed=None):
     #util_sa.print_all_pretty_tables(engine, 20)
 
     #===========================================================================
-    # Fitness
+    # fitness
     #===========================================================================
     creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = mapping.objective_space.objective_names)
     
@@ -232,7 +229,7 @@ def main(seed=None):
 
     # Assert that they are indeed evaluated
     for ind in final_pop:
-        assert ind.Fitness.valid, "{}".format(ind)
+        assert ind.fitness.valid, "{}".format(ind)
         
     # And re-copy
     pop = final_pop
@@ -271,7 +268,7 @@ def main(seed=None):
             
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
-            del ind1.Fitness.values, ind2.Fitness.values
+            del ind1.fitness.values, ind2.fitness.values
         #logging.debug("Operated over {} pairs".format(len(pairs)))
         printhashes(offspring,"Varied offspring g{}".format(gen))
         
@@ -329,7 +326,7 @@ def main(seed=None):
     return pop, stats
 
 def showconvergence(pop):
-    pop.sort(key=lambda x: x.Fitness.values)
+    pop.sort(key=lambda x: x.fitness.values)
     with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
         optimal_front = json.load(optimal_front_data)
         
@@ -337,7 +334,7 @@ def showconvergence(pop):
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
 
-    pop.sort(key=lambda x: x.Fitness.values)
+    pop.sort(key=lambda x: x.fitness.values)
 
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))

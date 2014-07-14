@@ -88,7 +88,7 @@ def convert_DB_individual(res, mapping):
         val = getattr(res, "obj_c_{}".format(name))
         fitvals.append(val)
 
-    this_fit = mapping.Fitness()
+    this_fit = mapping.fitness()
     this_fit.setValues(fitvals)
 
     this_ind = mapping.Individual(chromosome=chromosome, 
@@ -104,7 +104,7 @@ def convert_individual_DB(ResultsClass,ind):
     for gene in ind.chromosome:
         setattr(this_res, "var_c_{}".format(gene.name),gene.index)
 
-    for name,val in zip(ind.Fitness.names,ind.Fitness.values):
+    for name,val in zip(ind.fitness.names,ind.fitness.values):
         setattr(this_res, "obj_c_{}".format(name),val)
 
     return this_res
@@ -232,9 +232,9 @@ def evaluate_population(population, engine):
             assert(len(res) == 1)
             row = res[0]
 
-            # Select and assign the Fitness rows for this individual
+            # Select and assign the fitness rows for this individual
             objectives = [row[col] for col in objective_columns]
-            indiv.Fitness = zip(objective_names,objectives)
+            indiv.fitness = zip(objective_names,objectives)
 
             evaluated_pop.append(indiv)
 
@@ -283,11 +283,11 @@ class Mapping(object):
         logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
 
     def assign_fitness(self, Fitness):
-        self.Fitness = Fitness
-        logging.info("This mapping will produce Fitness of class {}".format(Fitness.__name__))
+        self.fitness = Fitness
+        logging.info("This mapping will produce fitness of class {}".format(Fitness.__name__))
     
     def clone_ind(self, ind):
-        return Individual2(ind.chromosome, self.Fitness())
+        return Individual2(ind.chromosome, self.fitness())
     
     # Generating points in the space-------------
     def get_random_mapping(self, flg_verbose = False):
@@ -314,7 +314,7 @@ class Mapping(object):
                                     #vtypes = vtypes,
                                     #indices=indices, 
                                     #fitness_names = self.objective_space.objective_names, 
-                                    fitness=self.Fitness()
+                                    fitness=self.fitness()
                                     )
         if flg_verbose:
             logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
@@ -801,7 +801,7 @@ class Individual2(list):
         super(Individual2, self).__init__(list_items)
         
         self.chromosome = chromosome
-        self.Fitness = fitness
+        self.fitness = fitness
         self.hash = self.__hash__()
         
         #logging.debug("Individual instantiated; {}".format(self))
@@ -829,16 +829,16 @@ class Individual2(list):
     #    return(self.__str__())
     
     def __str__(self):
-        return "{:>12}; {}, Fitness:{}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]), self.Fitness)
+        return "{:>12}; {}, fitness:{}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]), self.fitness)
                               #str() + ) #+ ", ".join([str(id(gene)) for gene in self.chromosome])
         
 #         name_idx_val = zip(self.names, self.indices, self)
 # 
 #         variable_str = ", ".join(["{}[{}]={}".format(*triplet) for triplet in name_idx_val])
 # 
-#         fitness_str = "{}={}".format(self.fitness_names,self.Fitness)
+#         fitness_str = "{}={}".format(self.fitness_names,self.fitness)
 #         
-#         #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.Fitness)])
+#         #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.fitness)])
 #         
 #         this_str = "{} {} ({}) -> {}".format(self.__hash__(),variable_str,",".join(self.vtypes),fitness_str)
 #         return(this_str)
@@ -847,8 +847,8 @@ class Individual2(list):
         raise
         #print()
         #print(self.fitness_names)
-        #print(self.Fitness)
-        for name, fit in zip(self.fitness_names,self.Fitness.values):
+        #print(self.fitness)
+        for name, fit in zip(self.fitness_names,self.fitness.values):
             setattr(self, name, fit)
         #setattr(self, name, fit)       
 
@@ -862,7 +862,7 @@ class Individual(object):
     indices
 
 
-    Fitness
+    fitness
 
 
 
@@ -875,11 +875,11 @@ class Individual(object):
         self.chromosome = chromosome
         self.indices = indices
         self.evaluator = evaluator
-        self.Fitness = fitness
+        self.fitness = fitness
 
     @property
     def evaluated(self):
-        if not self.Fitness: return False
+        if not self.fitness: return False
         else: return True
 
     def __str__(self):
@@ -889,8 +889,8 @@ class Individual(object):
         these_pairs = ["{} = {}".format(*this_pair) for this_pair in name_val_tuple]
         thisStr = ", ".join(these_pairs)
 
-        if self.Fitness:
-            thisStr = thisStr + " -> " + ", ".join(["{}={}".format(fit[0],fit[1]) for fit in self.Fitness])
+        if self.fitness:
+            thisStr = thisStr + " -> " + ", ".join(["{}={}".format(fit[0],fit[1]) for fit in self.fitness])
         else:
             thisStr = thisStr + " -> (Unitialized)"
         return thisStr

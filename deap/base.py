@@ -15,7 +15,7 @@
 
 """The :mod:`~deap.base` module provides basic structures to build
 evolutionary algorithms. It contains the :class:`~deap.base.Toolbox`, useful
-to store evolutionary operators, and a virtual :class:`~deap.base.Fitness`
+to store evolutionary operators, and a virtual :class:`~deap.base.fitness`
 class used as base class, for the fitness member of any individual. """
 
 import sys
@@ -143,7 +143,7 @@ class Fitness(object):
     
     weights = None
     """The weights are used in the fitness comparison. They are shared among
-    all fitnesses of the same type. When subclassing :class:`Fitness`, the
+    all fitnesses of the same type. When subclassing :class:`fitness`, the
     weights must be defined as a tuple where each element is associated to an
     objective. A negative weight element corresponds to the minimization of
     the associated objective and positive weight to the maximization.
@@ -152,7 +152,7 @@ class Fitness(object):
         If weights is not defined during subclassing, the following error will 
         occur at instantiation of a subclass fitness object: 
         
-        ``TypeError: Can't instantiate abstract <class Fitness[...]> with
+        ``TypeError: Can't instantiate abstract <class fitness[...]> with
         abstract attribute weights.``
     """
     
@@ -202,7 +202,7 @@ class Fitness(object):
         self.wvalues = ()
 
     values = property(getValues, setValues, delValues,
-        ("Fitness values. Use directly ``individual.fitness.values = values`` "
+        ("fitness values. Use directly ``individual.fitness.values = values`` "
          "in order to set the fitness and ``del individual.fitness.values`` "
          "in order to clear (invalidate) the fitness. The (unweighted) fitness "
          "can be directly accessed via ``individual.fitness.values``."))
@@ -262,7 +262,7 @@ class Fitness(object):
         return copy_
 
     def __str__(self):
-        """Return the values of the Fitness object."""
+        """Return the values of the fitness object."""
         return str(self.values if self.valid else "EMPTY FITNESS")
 
     def __repr__(self):
@@ -277,5 +277,5 @@ class FitnessMJ(Fitness):
         super(FitnessMJ, self).__init__(values)
 
     def __str__(self):
-        """Return the values of the Fitness object."""
+        """Return the values of the fitness object."""
         return str(self.names) + str(self.values if self.valid else tuple())  

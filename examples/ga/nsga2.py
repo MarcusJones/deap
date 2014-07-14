@@ -109,7 +109,6 @@ def main(seed=None):
 
     # Begin the generational process
     for gen in range(1, NGEN):
-        # Vary the population
         offspring = tools.selTournamentDCD(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
         

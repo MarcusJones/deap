@@ -2,7 +2,7 @@ from collections import defaultdict
 from itertools import chain
 from operator import attrgetter, itemgetter
 import random
-__all__ = ['mj_selTournamentDCD', 'mj_selTournamentDCD','mj_selNSGA2',]
+#__all__ = ['mj_selTournamentDCD', 'mj_selTournamentDCD','mj_selNSGA2',]
 
 def mj_selNSGA2(individuals, k, nd='standard'):
     """Modified MJ
@@ -57,7 +57,7 @@ def mj_selNSGA2(individuals, k, nd='standard'):
     k = k - len(chosen)
     # Check here something?
     if k > 0:
-        sorted_front = sorted(pareto_fronts[-1], key=attrgetter("Fitness.crowding_dist"), reverse=True)
+        sorted_front = sorted(pareto_fronts[-1], key=attrgetter("fitness.crowding_dist"), reverse=True)
         chosen.extend(sorted_front[:k])
     return chosen
 
@@ -98,7 +98,7 @@ def mj_sortNondominated(individuals, k, first_front_only=False):
     # Therefore, there should be no more than 1 individual per fitness if the function is one to one
     map_fit_ind = defaultdict(list)
     for ind in individuals:
-        map_fit_ind[ind.Fitness].append(ind)
+        map_fit_ind[ind.fitness].append(ind)
     fits = map_fit_ind.keys()
     
     #print(map_fit_ind)
@@ -150,7 +150,7 @@ def mj_sortNondominated(individuals, k, first_front_only=False):
             next_front = []
             
     for i, fr in enumerate(fronts):
-        print(i, [ind.Fitness for ind in fr])
+        print(i, [ind.fitness for ind in fr])
     #print([ind.hash for ind in fronts])
     #raise Exception
     return fronts
@@ -161,28 +161,28 @@ def mj_str_assignCrowdingDist(individuals):
     """Modified MJ
     Only operates in objective space, unchanged from original!
     """
-    """Assign a crowding distance to each individual's Fitness. The 
+    """Assign a crowding distance to each individual's fitness. The 
     crowding distance can be retrieve via the :attr:`crowding_dist` 
-    attribute of each individual's Fitness.
+    attribute of each individual's fitness.
     """
     if len(individuals) == 0:
         return
     
     distances = [0.0] * len(individuals)
-#     print(individuals[0].Fitness.valid)
-#     this_vals = individuals[0].Fitness.wvalues
-#     this_weights = individuals[0].Fitness.weights
+#     print(individuals[0].fitness.valid)
+#     this_vals = individuals[0].fitness.wvalues
+#     this_weights = individuals[0].fitness.weights
 #     print(this_vals, this_weights)
 #     for val, w in zip(this_vals,this_weights):
 #         print(val, w)
 #         print(truediv(val,w))
     #this_map = map(truediv, this_vals, this_weights)
-    #print(individuals[0].Fitness.weights)
-    #print([(ind.Fitness.values, i) for i, ind in enumerate(individuals)])
+    #print(individuals[0].fitness.weights)
+    #print([(ind.fitness.values, i) for i, ind in enumerate(individuals)])
     #print(tuple(map(truediv, self.wvalues, self.weights)))
-    crowd = [(ind.Fitness.values, i) for i, ind in enumerate(individuals)]
+    crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
     #raise Exception
-    nobj = len(individuals[0].Fitness.values)
+    nobj = len(individuals[0].fitness.values)
     
     for i in xrange(nobj):
         crowd.sort(key=lambda element: element[0][i])
@@ -195,7 +195,7 @@ def mj_str_assignCrowdingDist(individuals):
             distances[cur[1]] += (next[0][i] - prev[0][i]) / norm
 
     for i, dist in enumerate(distances):
-        individuals[i].Fitness.crowding_dist = dist
+        individuals[i].fitness.crowding_dist = dist
 
 
 
@@ -219,14 +219,14 @@ def mj_selTournamentDCD(individuals, k):
     assert len(individuals) % 4 == 0, "This selection MUST operate on population multiples of 4!"
     
     def tourn(ind1, ind2):
-        if ind1.Fitness.dominates(ind2.Fitness):
+        if ind1.fitness.dominates(ind2.fitness):
             return ind1
-        elif ind2.Fitness.dominates(ind1.Fitness):
+        elif ind2.fitness.dominates(ind1.fitness):
             return ind2
 
-        if ind1.Fitness.crowding_dist < ind2.Fitness.crowding_dist:
+        if ind1.fitness.crowding_dist < ind2.fitness.crowding_dist:
             return ind2
-        elif ind1.Fitness.crowding_dist > ind2.Fitness.crowding_dist:
+        elif ind1.fitness.crowding_dist > ind2.fitness.crowding_dist:
             return ind1
 
         if random.random() <= 0.5:
@@ -238,7 +238,7 @@ def mj_selTournamentDCD(individuals, k):
     individuals_2 = random.sample(individuals, len(individuals))
     
     # This assertion is always true, each list holds all the original individuals, just the order is changed
-    #assert(sorted([ind.Fitness.values for ind in individuals_1]) == sorted([ind.Fitness.values for ind in individuals_2]))
+    #assert(sorted([ind.fitness.values for ind in individuals_1]) == sorted([ind.fitness.values for ind in individuals_2]))
     
     raise Exception
     chosen = []
@@ -255,18 +255,18 @@ def mj_selTournamentDCD(individuals, k):
 
 
 def mj_assignCrowdingDist(individuals):
-    """Assign a crowding distance to each individual's Fitness. The 
+    """Assign a crowding distance to each individual's fitness. The 
     crowding distance can be retrieve via the :attr:`crowding_dist` 
-    attribute of each individual's Fitness.
+    attribute of each individual's fitness.
     """
     if len(individuals) == 0:
         return
     
     distances = [0.0] * len(individuals)
-    crowd = [(ind.Fitness.values, i) for i, ind in enumerate(individuals)]
+    crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
     
     # Number objectives
-    nobj = len(individuals[0].Fitness.values)
+    nobj = len(individuals[0].fitness.values)
     
     for i in xrange(nobj):
         crowd.sort(key=lambda element: element[0][i])
@@ -279,5 +279,5 @@ def mj_assignCrowdingDist(individuals):
             distances[cur[1]] += (next[0][i] - prev[0][i]) / norm
 
     for i, dist in enumerate(distances):
-        individuals[i].Fitness.crowding_dist = dist
+        individuals[i].fitness.crowding_dist = dist
         

@@ -173,7 +173,7 @@ def main(seed=None):
     #===========================================================================
     # Statistics and logging
     #===========================================================================
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+    creator.create("FitnessMin", base.fitness, weights=(-1.0, -1.0))
 
     #===========================================================================
     # Create the population

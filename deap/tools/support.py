@@ -57,7 +57,7 @@ class History(object):
     <http://networkx.lanl.gov/pygraphviz/>`_ (dot layout) this amazing
     genealogy tree can be obtained from the OneMax example with a population
     size of 20 and 5 generations, where the color of the nodes indicate there
-    Fitness, blue is low and red is high.
+    fitness, blue is low and red is high.
     
     .. image:: /_images/genealogy.png
        :width: 67%
@@ -265,7 +265,7 @@ class Logbook(list):
     as chapters. Chapters are used to store information associated to a
     specific part of the evolution. For example when computing statistics
     on different components of individuals (namely :class:`MultiStatistics`),
-    chapters can be used to distinguish the average Fitness and the average
+    chapters can be used to distinguish the average fitness and the average
     size.
     """
     
@@ -293,14 +293,14 @@ class Logbook(list):
         will be automatically added to the logbook.
         ::
             
-            >>> fit_stats = Statistics(key=attrgetter("Fitness.values"))
+            >>> fit_stats = Statistics(key=attrgetter("fitness.values"))
             >>> size_stats = Statistics(key=len)
-            >>> mstats = MultiStatistics(Fitness=fit_stats, size=size_stats)
+            >>> mstats = MultiStatistics(fitness=fit_stats, size=size_stats)
             >>> # [...]
             >>> record = mstats.compile(population)
             >>> logbook.record(**record)
             >>> print logbook
-              Fitness          length
+              fitness          length
             ------------    ------------
             max     mean    max     mean
             2       1       4       3
@@ -313,7 +313,7 @@ class Logbook(list):
         :meth:`__str__` methods. The syntax is a single iterable containing
         string elements. For example, with the previously
         defined statistics class, one can print the generation and the
-        Fitness average, and maximum with
+        fitness average, and maximum with
         ::
 
             logbook.header = ("gen", "mean", "max")
@@ -485,8 +485,8 @@ class HallOfFame(object):
     """The hall of fame contains the best individual that ever lived in the
     population during the evolution. It is lexicographically sorted at all
     time so that the first element of the hall of fame is the individual that
-    has the best first Fitness value ever seen, according to the weights
-    provided to the Fitness at creation time.
+    has the best first fitness value ever seen, according to the weights
+    provided to the fitness at creation time.
     
     The insertion is made so that old individuals have priority on new
     individuals. A single copy of each individual is kept at all time, the
@@ -514,7 +514,7 @@ class HallOfFame(object):
         *population* (if they are better). The size of the hall of fame is
         kept constant.
         
-        :param population: A list of individual with a Fitness attribute to
+        :param population: A list of individual with a fitness attribute to
                            update the hall of fame with.
         """
         if len(self) == 0 and self.maxsize !=0:
@@ -523,7 +523,7 @@ class HallOfFame(object):
             self.insert(population[0])
         
         for ind in population:
-            if ind.Fitness > self[-1].Fitness or len(self) < self.maxsize:
+            if ind.fitness > self[-1].fitness or len(self) < self.maxsize:
                 for hofer in self:
                     # Loop through the hall of fame to check for any
                     # similar individual
@@ -545,13 +545,13 @@ class HallOfFame(object):
         way that inserting a new individual in a full hall of fame will not
         remove the worst individual to maintain a constant size.
         
-        :param item: The individual with a Fitness attribute to insert in the
+        :param item: The individual with a fitness attribute to insert in the
                      hall of fame.
         """
         item = deepcopy(item)
-        i = bisect_right(self.keys, item.Fitness)
+        i = bisect_right(self.keys, item.fitness)
         self.items.insert(len(self) - i, item)
-        self.keys.insert(i, item.Fitness)
+        self.keys.insert(i, item.fitness)
     
     def remove(self, index):
         """Remove the specified *index* from the hall of fame.
@@ -609,7 +609,7 @@ class ParetoFront(HallOfFame):
         of fame. If any individual in the hall of fame is dominated it is
         removed.
         
-        :param population: A list of individual with a Fitness attribute to
+        :param population: A list of individual with a fitness attribute to
                            update the hall of fame with.
         """
         for ind in population:
@@ -617,12 +617,12 @@ class ParetoFront(HallOfFame):
             has_twin = False
             to_remove = []
             for i, hofer in enumerate(self):    # hofer = hall of famer
-                if hofer.Fitness.dominates(ind.Fitness):
+                if hofer.fitness.dominates(ind.fitness):
                     is_dominated = True
                     break
-                elif ind.Fitness.dominates(hofer.Fitness):
+                elif ind.fitness.dominates(hofer.fitness):
                     to_remove.append(i)
-                elif ind.Fitness == hofer.Fitness and self.similar(ind, hofer):
+                elif ind.fitness == hofer.fitness and self.similar(ind, hofer):
                     has_twin = True
                     break
             

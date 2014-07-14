@@ -31,11 +31,11 @@ INDCLSNAME = "IND_TYPE"
 
     
 def setup_func_single_obj():
-    creator.create(FITCLSNAME, base.Fitness, weights=(-1.0,))
+    creator.create(FITCLSNAME, base.fitness, weights=(-1.0,))
     creator.create(INDCLSNAME, list, fitness=creator.__dict__[FITCLSNAME])
 
 def setup_func_multi_obj():
-    creator.create(FITCLSNAME, base.Fitness, weights=(-1.0, -1.0))
+    creator.create(FITCLSNAME, base.fitness, weights=(-1.0, -1.0))
     creator.create(INDCLSNAME, list, fitness=creator.__dict__[FITCLSNAME])
 
 def teardown_func():
@@ -58,7 +58,7 @@ def test_cma():
     pop, _ = algorithms.eaGenerateUpdate(toolbox, ngen=100)
     best, = tools.selBest(pop, k=1)
 
-    assert best.Fitness.values < (1e-8,), "CMA algorithm did not converged properly."
+    assert best.fitness.values < (1e-8,), "CMA algorithm did not converged properly."
 
 @with_setup(setup_func_multi_obj, teardown_func)
 def test_nsga2():
@@ -79,7 +79,7 @@ def test_nsga2():
     pop = toolbox.population(n=MU)
     fitnesses = toolbox.map(toolbox.evaluate, pop)
     for ind, fit in zip(pop, fitnesses):
-        ind.Fitness.values = fit
+        ind.fitness.values = fit
 
     pop = toolbox.select(pop, len(pop))
     for gen in range(1, 100):
@@ -92,12 +92,12 @@ def test_nsga2():
             
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
-            del ind1.Fitness.values, ind2.Fitness.values
+            del ind1.fitness.values, ind2.fitness.values
         
-        invalid_ind = [ind for ind in offspring if not ind.Fitness.valid]
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
         fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
-            ind.Fitness.values = fit
+            ind.fitness.values = fit
 
         pop = toolbox.select(pop + offspring, MU)
 
