@@ -68,24 +68,8 @@ def mj_string_mutPolynomialBounded(individual, eta, low, up, indpb):
     
     for i, xl, xu in zip(xrange(size), low, up):
         if random.random() <= indpb:
-            #print(individual)
-            #print(individual[i].value)
-            #print(type(individual[i].value))
-            #print(type(float(individual[i].value)))
-            try:
-                print(individual[i])
-                print(individual[i].value)
-                print(type(individual[i].value))
-                print(float(individual[i].value))
-                x = float(individual[i].value)
-            except:
-                print(individual[i])
-                raise
-            try:
-                delta_1 = (x - xl) / (xu - xl)
-            except:
-                print(x)
-                raise
+            x = individual[i]
+            delta_1 = (x - xl) / (xu - xl)
             delta_2 = (xu - x) / (xu - xl)
             rand = random.random()
             mut_pow = 1.0 / (eta + 1.)

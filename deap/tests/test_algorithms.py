@@ -58,7 +58,7 @@ def test_cma():
     pop, _ = algorithms.eaGenerateUpdate(toolbox, ngen=100)
     best, = tools.selBest(pop, k=1)
 
-    assert best.fitness.values < (1e-8,), "CMA algorithm did not converged properly."
+    assert best.Fitness.values < (1e-8,), "CMA algorithm did not converged properly."
 
 @with_setup(setup_func_multi_obj, teardown_func)
 def test_nsga2():
@@ -79,7 +79,7 @@ def test_nsga2():
     pop = toolbox.population(n=MU)
     fitnesses = toolbox.map(toolbox.evaluate, pop)
     for ind, fit in zip(pop, fitnesses):
-        ind.fitness.values = fit
+        ind.Fitness.values = fit
 
     pop = toolbox.select(pop, len(pop))
     for gen in range(1, 100):
@@ -92,12 +92,12 @@ def test_nsga2():
             
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
-            del ind1.fitness.values, ind2.fitness.values
+            del ind1.Fitness.values, ind2.Fitness.values
         
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        invalid_ind = [ind for ind in offspring if not ind.Fitness.valid]
         fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
+            ind.Fitness.values = fit
 
         pop = toolbox.select(pop + offspring, MU)
 

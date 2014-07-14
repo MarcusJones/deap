@@ -31,7 +31,7 @@ def selBest(individuals, k):
     :param k: The number of individuals to select.
     :returns: A list containing the k best individuals.
     """
-    return sorted(individuals, key=attrgetter("fitness"), reverse=True)[:k]
+    return sorted(individuals, key=attrgetter("Fitness"), reverse=True)[:k]
 
 
 def selWorst(individuals, k):
@@ -42,7 +42,7 @@ def selWorst(individuals, k):
     :param k: The number of individuals to select.
     :returns: A list containing the k worst individuals.
     """
-    return sorted(individuals, key=attrgetter("fitness"))[:k]
+    return sorted(individuals, key=attrgetter("Fitness"))[:k]
 
 
 def selTournament(individuals, k, tournsize):
@@ -61,7 +61,7 @@ def selTournament(individuals, k, tournsize):
     chosen = []
     for i in xrange(k):
         aspirants = selRandom(individuals, tournsize)
-        chosen.append(max(aspirants, key=attrgetter("fitness")))
+        chosen.append(max(aspirants, key=attrgetter("Fitness")))
     return chosen
 
 def selRoulette(individuals, k):
@@ -79,17 +79,17 @@ def selRoulette(individuals, k):
     
     .. warning::
        The roulette selection by definition cannot be used for minimization 
-       or when the fitness can be smaller or equal to 0.
+       or when the Fitness can be smaller or equal to 0.
     """
-    s_inds = sorted(individuals, key=attrgetter("fitness"), reverse=True)
-    sum_fits = sum(ind.fitness.values[0] for ind in individuals)
+    s_inds = sorted(individuals, key=attrgetter("Fitness"), reverse=True)
+    sum_fits = sum(ind.Fitness.values[0] for ind in individuals)
     
     chosen = []
     for i in xrange(k):
         u = random.random() * sum_fits
         sum_ = 0
         for ind in s_inds:
-            sum_ += ind.fitness.values[0]
+            sum_ += ind.Fitness.values[0]
             if sum_ > u:
                 chosen.append(ind)
                 break
@@ -122,14 +122,14 @@ def selDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_fi
     :param individuals: A list of individuals to select from.
     :param k: The number of individuals to select.
     :param fitness_size: The number of individuals participating in each \
-    fitness tournament
+    Fitness tournament
     :param parsimony_size: The number of individuals participating in each \
     size tournament. This value has to be a real number\
     in the range [1,2], see above for details.
     :param fitness_first: Set this to True if the first tournament done should \
-    be the fitness one (i.e. the fitness tournament producing aspirants for \
+    be the Fitness one (i.e. the Fitness tournament producing aspirants for \
     the size tournament). Setting it to False will behaves as the opposite \
-    (size tournament feeding fitness tournaments with candidates). It has been \
+    (size tournament feeding Fitness tournaments with candidates). It has been \
     shown that this parameter does not have a significant effect in most cases\
     (see [Luke2002fighting]_).
     :returns: A list of selected individuals.
@@ -163,7 +163,7 @@ def selDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_fi
         chosen = []
         for i in xrange(k):
             aspirants = select(individuals, k=fitness_size)
-            chosen.append(max(aspirants, key=attrgetter("fitness")))
+            chosen.append(max(aspirants, key=attrgetter("Fitness")))
         return chosen
     
     if fitness_first:

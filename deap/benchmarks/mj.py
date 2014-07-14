@@ -41,8 +41,14 @@ def mj_zdt1_decimal(individual):
     g  = 1.0 + 9.0*sum(values[1:])/(len(values)-1)
     f1 = values[0]
     f2 = g * (1 - sqrt(f1/g))
-    individual.fitness.values = (f1, f2)
     
-    logging.debug("Evaluated {} -> {}".format(values, individual.fitness.values))
+    this_fit = individual.Fitness()
+    this_fit.setValues((f1, f2))
+    #print(this_fit)
+    individual.Fitness = this_fit
+    #raise Exception
+    #individual.Fitness.values = (f1, f2)
+    
+    logging.debug("Evaluated {} -> {}".format(values, individual.Fitness))
     
     return individual

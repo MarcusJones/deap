@@ -245,12 +245,12 @@ def diversity(first_front, first, last):
     of the front as explained in the original NSGA-II article by K. Deb.
     The smaller the value is, the better the front is.
     """
-    df = hypot(first_front[0].fitness.values[0] - first[0],
-               first_front[0].fitness.values[1] - first[1])
-    dl = hypot(first_front[-1].fitness.values[0] - last[0],
-               first_front[-1].fitness.values[1] - last[1])
-    dt = [hypot(first.fitness.values[0] - second.fitness.values[0],
-                first.fitness.values[1] - second.fitness.values[1])
+    df = hypot(first_front[0].Fitness.values[0] - first[0],
+               first_front[0].Fitness.values[1] - first[1])
+    dl = hypot(first_front[-1].Fitness.values[0] - last[0],
+               first_front[-1].Fitness.values[1] - last[1])
+    dt = [hypot(first.Fitness.values[0] - second.Fitness.values[0],
+                first.Fitness.values[1] - second.Fitness.values[1])
           for first, second in zip(first_front[:-1], first_front[1:])]
 
     if len(first_front) == 1:
@@ -274,7 +274,7 @@ def convergence(first_front, optimal_front):
         for opt_ind in optimal_front:
             dist = 0.
             for i in xrange(len(opt_ind)):
-                dist += (ind.fitness.values[i] - opt_ind[i])**2
+                dist += (ind.Fitness.values[i] - opt_ind[i])**2
             if dist < distances[-1]:
                 distances[-1] = dist
         distances[-1] = sqrt(distances[-1])

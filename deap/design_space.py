@@ -74,9 +74,148 @@ def generate_chromosome(basis_set):
 
     return zip(variable_names,variable_indices,variableValues)
 
+#--- Database
+def convert_DB_individual(res, mapping):
+    #print(res)
+    #for it in dir(res):
+    #    print(it)
+    
+    
+    
+    chromosome = list()
+    #indices = list()
+    #vtypes = list()
+    #labels = list()
+    for var in mapping.design_space.basis_set:
+        #print(var.name)
+        
+        index = getattr(res, "var_c_{}".format(var.name))
+        this_var = var.get_indexed_obj(index)
+        chromosome.append(this_var)
+        #indices.append(var.index)
+        #vtypes.append(var.vtype)
+        #labels.append(var.name)
+
+    #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
+    #print(mapping.objective_space)
+    #for obj in mapping.objective_space.names:
+    #    print(obj)
+    fitvals = list()
+    for name in mapping.objective_space.objective_names:
+        #print(name)
+        val = getattr(res, "obj_c_{}".format(name))
+        fitvals.append(val)
+    #print(mapping.Fitness)
+    #print(type(mapping.Fitness(fitvals)))
+    this_fit = mapping.Fitness(values=tuple(fitvals))
+    this_fit = mapping.Fitness()
+    this_fit.setValues(fitvals)
+    #print(this_fit)
+    #print(this_fit.values)
+    #print(this_fit.weights)
+    #print(this_fit.valid)
+    #print(type(this_fit))
+    #this_fit.values = tuple(fitvals)
+    #print(this_fit)
+    #print(type(this_fit))
+    #print(this_fit.values)
+    #raise Exception
+    this_ind = mapping.Individual(chromosome=chromosome, 
+                                #names=labels,
+                                #vtypes = vtypes,
+                                #indices=indices, 
+                                #fitness_names = self.objective_space.objective_names, 
+                                fitness=this_fit
+                                )
+    
+    #raise Exception
+    #convert_DB_individual
+    return this_ind
+
+def convert_individual_DB(ResultsClass,ind):
+    this_res = ResultsClass()
+    this_res.hash = ind.hash
+    
+    for gene in ind.chromosome:
+        setattr(this_res, "var_c_{}".format(gene.name),gene.index)
+
+    for name,val in zip(ind.Fitness.names,ind.Fitness.values):
+        setattr(this_res, "obj_c_{}".format(name),val)
+
+    return this_res
+
+
+
+def generate_individuals_table(mapping):
+    columns = list()
+    columns.append(sa.Column('hash', sa.Integer, primary_key=True))
+    columns.append(sa.Column('start', sa.DateTime))
+    columns.append(sa.Column('finish', sa.DateTime))    
+    for var in mapping.design_space.basis_set:
+        columns.append(sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ))
+    for obj in mapping.objective_space.objective_names:
+        #columns.append(sa.Column("{}".format(obj), sa.Float, nullable = False,  ))
+        columns.append(sa.Column("obj_c_{}".format(obj), sa.Float))
+    
+    tab_results = sa.Table('Results', DB_Base.metadata, *columns)
+    
+    return(tab_results)  
+
+def generate_ORM_individual(mapping):
+    def __str__(self):
+        return "XXX"
+        #return ", ".join(var in mapping.design_space.basis_set)
+    def __repr__(self):
+        #return ",".join(dir(self))
+        return "{} {} {}".format(self.hash, self.start, self.finish)
+        #return ", ".join(var in mapping.design_space.basis_set)  
+    attr_dict = {
+                    '__tablename__' : 'Results',
+                    'hash' : sa.Column(Integer, primary_key=True),
+                    'start' : sa.Column('start', sa.DateTime),
+                    'finish' : sa.Column('finish', sa.DateTime),
+                    '__str__' : __str__,
+                    '__repr__' : __repr__,
+                }
+    for var in mapping.design_space.basis_set:
+        attr_dict["var_c_{}".format(var.name)] =sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ) 
+    for obj in mapping.objective_space.objective_names:
+        attr_dict["obj_c_{}".format(obj)] =  sa.Column("obj_c_{}".format(obj), sa.Float)
+    
+    ThisClass = type('Results',(object,),attr_dict)
+
+
+    return ThisClass
+
+def generate_variable_table_class(name):
+    """This is a helper function which dynamically creates a new ORM enabled class
+    The table will hold the individual values of each variable
+    Individual values are stored as a string
+    """
+
+    class NewTable( DB_Base ):
+        __tablename__ = "vector_{}".format(name)
+        #__table_args__ = { 'schema': db }
+        id = Column(Integer, primary_key=True)
+        value = Column(String)
+        def __init__(self,value):
+            self.value = str(value)
+            
+        def __str__(self):
+            return self.value
+        
+        def __repr__(self):
+            return self.value    
+        
+    NewTable.__name__ = "vector_ORM_{}".format(name)
+    return NewTable
+
+
+
 #---
 
 def evaluate_population(population, engine):
+    raise
     """Given a list of individuals, evaluate only those which are
     1. Unique
     2. Not already existing in database
@@ -128,9 +267,9 @@ def evaluate_population(population, engine):
             assert(len(res) == 1)
             row = res[0]
 
-            # Select and assign the fitness rows for this individual
+            # Select and assign the Fitness rows for this individual
             objectives = [row[col] for col in objective_columns]
-            indiv.fitness = zip(objective_names,objectives)
+            indiv.Fitness = zip(objective_names,objectives)
 
             evaluated_pop.append(indiv)
 
@@ -178,9 +317,9 @@ class Mapping(object):
         self.Individual = Individual
         logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
 
-    def assign_fitness(self, fitness):
-        self.fitness = fitness
-        logging.info("This mapping will produce fitness of class {}".format(fitness.__name__))
+    def assign_fitness(self, Fitness):
+        self.Fitness = Fitness
+        logging.info("This mapping will produce Fitness of class {}".format(Fitness.__name__))
 
     # Generating points in the space-------------
     def get_random_mapping(self, flg_verbose = False):
@@ -207,7 +346,7 @@ class Mapping(object):
                                     #vtypes = vtypes,
                                     #indices=indices, 
                                     #fitness_names = self.objective_space.objective_names, 
-                                    fitness=self.fitness
+                                    fitness=self.Fitness()
                                     )
         if flg_verbose:
             logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
@@ -251,29 +390,6 @@ class Mapping(object):
         raise
         pass
 
-
-def generate_variable_table_class(name):
-    """This is a helper function which dynamically creates a new ORM enabled class
-    The table will hold the individual values of each variable
-    Individual values are stored as a string
-    """
-
-    class NewTable( DB_Base ):
-        __tablename__ = "vector_{}".format(name)
-        #__table_args__ = { 'schema': db }
-        id = Column(Integer, primary_key=True)
-        value = Column(String)
-        def __init__(self,value):
-            self.value = str(value)
-            
-        def __str__(self):
-            return self.value
-        
-        def __repr__(self):
-            return self.value    
-        
-    NewTable.__name__ = "vector_ORM_{}".format(name)
-    return NewTable
 
 class VariableObject(object):
     """
@@ -446,6 +562,14 @@ class Variable(DB_Base):
         self.index = random.choice(range(len(self)))
         return self
 
+    def get_indexed_obj(self, index):
+        self.index = index
+        return VariableObject(self.name, 
+                              self.vtype, 
+                              self.variable_tuple, 
+                              self.index, 
+                              self.ordered)
+        
     def get_random_obj(self):
         """
         Return a random value from all possible values
@@ -687,67 +811,6 @@ class DesignSpace(object):
         return len(self.basis_set)
 
 
-#--- Database
-def generate_individuals_table(mapping):
-    columns = list()
-    columns.append(sa.Column('hash', sa.Integer, primary_key=True))
-    columns.append(sa.Column('start', sa.DateTime))
-    columns.append(sa.Column('finish', sa.DateTime))    
-    for var in mapping.design_space.basis_set:
-        columns.append(sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ))
-    for obj in mapping.objective_space.objective_names:
-        #columns.append(sa.Column("{}".format(obj), sa.Float, nullable = False,  ))
-        columns.append(sa.Column("obj_c_{}".format(obj), sa.Float))
-    
-    tab_results = sa.Table('Results', DB_Base.metadata, *columns)
-    
-    return(tab_results)  
-
-def generate_ORM_individual(mapping):
-    def __str__(self):
-        return "XXX"
-        #return ", ".join(var in mapping.design_space.basis_set)
-    def __repr__(self):
-        #return ",".join(dir(self))
-        return "{} {} {}".format(self.hash, self.start, self.finish)
-        #return ", ".join(var in mapping.design_space.basis_set)  
-    attr_dict = {
-                    '__tablename__' : 'Results',
-                    'hash' : sa.Column(Integer, primary_key=True),
-                    'start' : sa.Column('start', sa.DateTime),
-                    'finish' : sa.Column('finish', sa.DateTime),
-                    '__str__' : __str__,
-                    '__repr__' : __repr__,
-                }
-    for var in mapping.design_space.basis_set:
-        attr_dict["var_c_{}".format(var.name)] =sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ) 
-    for obj in mapping.objective_space.objective_names:
-        attr_dict["obj_c_{}".format(obj)] =  sa.Column("obj_c_{}".format(obj), sa.Float)
-    
-    ThisClass = type('Results',(object,),attr_dict)
-
-
-    return ThisClass
-
-
-def convert_individual_DB(ResultsClass,ind):
-    this_res = ResultsClass()
-    this_res.hash = ind.hash
-    
-    for gene in ind.chromosome:
-        setattr(this_res, "var_c_{}".format(gene.name),gene.index)
-
-    #print(ind.fitness.names)
-    #print(ind.fitness.values)
-            
-    #raise
-
-    for name,val in zip(ind.fitness.names,ind.fitness.values):
-        setattr(this_res, "obj_c_{}".format(name),val)
-    #    
-    #setattr(this_res, "var_c_{}".format(gene.name),gene.index)
-    return this_res
-
 
 class Individual2(list):
     """An individual is composed of a list of genes (chromosome)
@@ -765,7 +828,7 @@ class Individual2(list):
         #    assert type(ind) == int
         
         #assert len(chromosome) == len(names) == len(indices)
-        #assert len(fitness) == len(fitness_names)
+        #assert len(Fitness) == len(fitness_names)
         
         # Assign values to self(list)
         #print([gene.value for gene in chromosome])
@@ -784,27 +847,27 @@ class Individual2(list):
         
         self.chromosome = chromosome
         
-        self.fitness = fitness
+        self.Fitness = fitness
         #print(self)
         #raise
         
         #self.indices = indices
         #self.names = names
         #self.vtypes = vtypes
-        #self.fitness = fitness
+        #self.Fitness = Fitness
         #self.fitness_names = fitness_names
         
         # Each item of the list needs it's own attribute defined in class
         #for name, index in zip(names,indices):
         #    setattr(self, name, index)
         
-        ## Each item of fitness
+        ## Each item of Fitness
         #for name in self.fitness_names:
         #    setattr(self, name, None)
         
         
         #print(self.obj1)
-        #for name, fit in zip(fitness_names,fitness):
+        #for name, fit in zip(fitness_names,Fitness):
         #    setattr(self, name, fit)            
             #print(name, index)
         #raise
@@ -836,16 +899,16 @@ class Individual2(list):
     #    return(self.__str__())
     
     def __str__(self):
-        return "{:>12}; {}, fitness:{}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]), self.fitness)
+        return "{:>12}; {}, Fitness:{}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]), self.Fitness)
                               #str() + ) #+ ", ".join([str(id(gene)) for gene in self.chromosome])
         
 #         name_idx_val = zip(self.names, self.indices, self)
 # 
 #         variable_str = ", ".join(["{}[{}]={}".format(*triplet) for triplet in name_idx_val])
 # 
-#         fitness_str = "{}={}".format(self.fitness_names,self.fitness)
+#         fitness_str = "{}={}".format(self.fitness_names,self.Fitness)
 #         
-#         #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.fitness)])
+#         #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.Fitness)])
 #         
 #         this_str = "{} {} ({}) -> {}".format(self.__hash__(),variable_str,",".join(self.vtypes),fitness_str)
 #         return(this_str)
@@ -853,8 +916,8 @@ class Individual2(list):
     def assign_fitness(self):
         #print()
         #print(self.fitness_names)
-        #print(self.fitness)
-        for name, fit in zip(self.fitness_names,self.fitness.values):
+        #print(self.Fitness)
+        for name, fit in zip(self.fitness_names,self.Fitness.values):
             setattr(self, name, fit)
         #setattr(self, name, fit)       
         
@@ -868,7 +931,7 @@ class Individual(object):
     indices
 
 
-    fitness
+    Fitness
 
 
 
@@ -881,11 +944,11 @@ class Individual(object):
         self.chromosome = chromosome
         self.indices = indices
         self.evaluator = evaluator
-        self.fitness = fitness
+        self.Fitness = fitness
 
     @property
     def evaluated(self):
-        if not self.fitness: return False
+        if not self.Fitness: return False
         else: return True
 
     def __str__(self):
@@ -895,8 +958,8 @@ class Individual(object):
         these_pairs = ["{} = {}".format(*this_pair) for this_pair in name_val_tuple]
         thisStr = ", ".join(these_pairs)
 
-        if self.fitness:
-            thisStr = thisStr + " -> " + ", ".join(["{}={}".format(fit[0],fit[1]) for fit in self.fitness])
+        if self.Fitness:
+            thisStr = thisStr + " -> " + ", ".join(["{}={}".format(fit[0],fit[1]) for fit in self.Fitness])
         else:
             thisStr = thisStr + " -> (Unitialized)"
         return thisStr

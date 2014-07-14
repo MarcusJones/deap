@@ -38,10 +38,11 @@ import matplotlib.pyplot as plt
 #from math import sqrt
 import utility_SQL_alchemy as util_sa
 #--- Import design space
-from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective, generate_individuals_table
-from deap.design_space import Individual2
+from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective, Individual2
+from deap.design_space import generate_individuals_table,generate_ORM_individual,convert_individual_DB, convert_DB_individual
 from deap.mj_utilities.db_base import DB_Base
-
+from deap.benchmarks import mj as mj
+from deap.benchmarks.old_init import zdt1
 #--- Import deap
 import random
 from deap.mj_evaluators.zdt1_exe import evaluate
@@ -56,6 +57,7 @@ from deap import benchmarks
 from deap.benchmarks.tools import diversity, convergence
 from deap import creator
 from deap import tools
+
 
 import sqlalchemy as sa
 import utility_SQL_alchemy as util_sa
@@ -84,7 +86,7 @@ def main(seed=None):
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '.2'
     RES_STR = '0.10'
     NGEN = 10
-    POPSIZE = 8
+    POPSIZE = 4*2
     MU = 100
     CXPB = 0.9
     range(NDIM)
@@ -94,13 +96,10 @@ def main(seed=None):
     #===========================================================================
     # Create basis set
     var_names = ['var'+'a'*(num+1) for num in range(NDIM)]    
-    #myLogger.setLevel("CRITICAL")
     with loggerCritical():
         basis_set = [Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
-    #myLogger.setLevel("DEBUG")
     
     # Add to DB
-    #DB_Base.metadata.create_all(engine)
     for var in basis_set:
         session.add_all(var.variable_tuple)
         
@@ -123,12 +122,13 @@ def main(seed=None):
     for obj in objs:
         session.add(obj)
         
-    #===========================================================================
-    # Mapping and results table
-    #===========================================================================
+    #=======================================================================
+    # Results is composed of a class and a table, mapped together        
+    #=======================================================================
     mapping = Mapping(thisDspace, this_obj_space)
-    results_table = generate_individuals_table(mapping)
-    sa.orm.mapper(Individual2, results_table) 
+    res_ORM_table = generate_individuals_table(mapping)
+    Results = generate_ORM_individual(mapping)
+    sa.orm.mapper(Results, res_ORM_table) 
     
     #===========================================================================
     # Flush DB
@@ -140,14 +140,15 @@ def main(seed=None):
     #===========================================================================
     # Fitness
     #===========================================================================
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
-
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = mapping.objective_space.objective_names)
+    
     toolbox = base.Toolbox()
 
     #===========================================================================
     # Eval
     #===========================================================================
-    toolbox.register("evaluate", benchmarks.mj_zdt1_decimal)
+    #toolbox.register("evaluate", old_init.mj_zdt1_decimal)
+    toolbox.register("evaluate", mj.mj_zdt1_decimal)
 
     #===========================================================================
     # Operators
@@ -188,8 +189,10 @@ def main(seed=None):
             
             # First, check if in DB
             try:
-                query = session.query(Individual2).filter(Individual2.hash == ind.hash)
-                ind = query.one()
+                query = session.query(Results).filter(Results.hash == ind.hash)
+                res = query.one()
+                ind = convert_DB_individual(res, mapping)
+                
                 logging.debug("Retrieved {}".format(ind))
                 
             # Otherwise, do a fresh evaluation
@@ -197,7 +200,8 @@ def main(seed=None):
                 ind = toolbox.evaluate(ind)
                 logging.debug("Evaluated {}".format(ind))
                 eval_count += 1
-                session.add(ind)
+                res = convert_individual_DB(Results,ind)
+                session.add(res)
             final_pop.append(ind)
     
     logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
@@ -206,7 +210,7 @@ def main(seed=None):
 
     # Assert that they are indeed evaluated
     for ind in final_pop:
-        assert ind.fitness.valid, "{}".format(ind)
+        assert ind.Fitness.valid, "{}".format(ind)
         
     # And re-copy
     pop = final_pop
@@ -214,6 +218,10 @@ def main(seed=None):
     #===========================================================================
     # Selection
     #===========================================================================
+    
+    for ind in pop:
+        print(ind)
+    
     pop = toolbox.select(pop, len(pop))
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
 
@@ -236,17 +244,17 @@ def main(seed=None):
             
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
-            del ind1.fitness.values, ind2.fitness.values
+            del ind1.Fitness.values, ind2.Fitness.values
         logging.debug("Operated over {} pairs".format(len(pairs)))
 
-        # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        # Evaluate the individuals with an invalid Fitness
+        invalid_ind = [ind for ind in offspring if not ind.Fitness.valid]
         processed_ind = toolbox.map(toolbox.evaluate, invalid_ind)
         logging.debug("Evaluated {} individuals".format(len(processed_ind)))
 
         #raise
         #for ind, fit in zip(invalid_ind, fitnesses):
-        #    ind.fitness.values = fit
+        #    ind.Fitness.values = fit
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, MU)
@@ -260,7 +268,7 @@ def main(seed=None):
     # Use 500 of the 1000 points in the json file
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
-    pop.sort(key=lambda x: x.fitness.values)
+    pop.sort(key=lambda x: x.Fitness.values)
     
     util_sa.print_all_pretty_tables(engine, 20)
     
@@ -279,7 +287,7 @@ if __name__ == "__main__":
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
     pop, stats = main()
-    pop.sort(key=lambda x: x.fitness.values)
+    pop.sort(key=lambda x: x.Fitness.values)
 
     #print(stats)
     print("Convergence: ", convergence(pop, optimal_front))

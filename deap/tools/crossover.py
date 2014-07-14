@@ -276,7 +276,6 @@ def cxSimulatedBinary(ind1, ind2, eta):
 
 
 def mj_string_cxSimulatedBinaryBounded(ind1, ind2, eta, low, up):
-    logging.debug("Crossover {} {}".format(ind1, ind2))
     """Executes a simulated binary crossover that modify in-place the input
     individuals. The simulated binary crossover expects :term:`sequence`
     individuals of floating point numbers.
@@ -313,13 +312,9 @@ def mj_string_cxSimulatedBinaryBounded(ind1, ind2, eta, low, up):
         if random.random() <= 0.5:
             # This epsilon should probably be changed for 0 since 
             # floating point arithmetic in Python is safer
-            condition = abs(float(ind1[i].value) - float(ind2[i].value))
-            print(condition)
-            if condition > 1e-14:
-                x1 = min(float(ind1[i].value), float(ind2[i].value))
-                x2 = max(float(ind1[i].value), float(ind2[i].value))
-                
-                #print(type(x1))
+            if abs(ind1[i] - ind2[i]) > 1e-14: 
+                x1 = min(ind1[i], ind2[i])
+                x2 = max(ind1[i], ind2[i])
                 rand = random.random()
                 
                 beta = 1.0 + (2.0 * (x1 - xl) / (x2 - x1))

@@ -4,8 +4,8 @@ from itertools import repeat
 from collections import Sequence
 
 class DeltaPenality(object):
-    """This decorator returns penalized fitness for invalid individuals and the
-    original fitness value for valid individuals. The penalized fitness is made
+    """This decorator returns penalized Fitness for invalid individuals and the
+    original Fitness value for valid individuals. The penalized Fitness is made
     of a constant factor *delta* added with an (optional) *distance* penality. The
     distance function, if provided, shall return a value growing as the
     individual moves away the valid zone.
@@ -17,8 +17,8 @@ class DeltaPenality(object):
                      and a given valid point (optional, defaults to 0).
     :returns: A decorator for evaluation function.
 
-    This function relies on the fitness weights to add correctly the distance.
-    The fitness value of the ith objective is defined as
+    This function relies on the Fitness weights to add correctly the distance.
+    The Fitness value of the ith objective is defined as
 
     .. math::
 
@@ -26,8 +26,8 @@ class DeltaPenality(object):
 
     where :math:`\mathbf{x}` is the individual, :math:`\Delta_i` is a user defined
     constant and :math:`w_i` is the weight of the ith objective. :math:`\Delta`
-    should be worst than the fitness of any possible individual, this means
-    higher than any fitness for minimization and lower than any fitness for
+    should be worst than the Fitness of any possible individual, this means
+    higher than any Fitness for minimization and lower than any Fitness for
     maximization.
 
     See the :doc:`/tutorials/advanced/constraints` for an example.
@@ -46,7 +46,7 @@ class DeltaPenality(object):
             if self.fbty_fct(individual):
                 return func(individual, *args, **kwargs)
 
-            weights = tuple(1 if w >= 0 else -1 for w in individual.fitness.weights)
+            weights = tuple(1 if w >= 0 else -1 for w in individual.Fitness.weights)
 
             dist = 0
             if self.dist_fct is not None:
@@ -56,9 +56,9 @@ class DeltaPenality(object):
         return wrapper
 
 class ClosestValidPenality(object):
-    """This decorator returns penalized fitness for invalid individuals and the
-    original fitness value for valid individuals. The penalized fitness is made
-    of the fitness of the closest valid individual added with a weighted
+    """This decorator returns penalized Fitness for invalid individuals and the
+    original Fitness value for valid individuals. The penalized Fitness is made
+    of the Fitness of the closest valid individual added with a weighted
     (optional) *distance* penality. The distance function, if provided, shall
     return a value growing as the individual moves away the valid zone.
 
@@ -72,8 +72,8 @@ class ClosestValidPenality(object):
                      and a given valid point (optional, defaults to 0).
     :returns: A decorator for evaluation function.
 
-    This function relies on the fitness weights to add correctly the distance.
-    The fitness value of the ith objective is defined as
+    This function relies on the Fitness weights to add correctly the distance.
+    The Fitness value of the ith objective is defined as
 
     .. math::
 
@@ -100,10 +100,10 @@ class ClosestValidPenality(object):
             f_ind = self.fbl_fct(individual)
             f_fbl = func(f_ind, *args, **kwargs)
 
-            weights = tuple(1.0 if w >= 0 else -1.0 for w in individual.fitness.weights)
+            weights = tuple(1.0 if w >= 0 else -1.0 for w in individual.Fitness.weights)
 
             if len(weights) != len(f_fbl):
-                raise IndexError("Fitness weights and computed fitness are of different size.")
+                raise IndexError("Fitness weights and computed Fitness are of different size.")
 
             dist = 0
             if self.dist_fct is not None:

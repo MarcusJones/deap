@@ -24,6 +24,7 @@ from collections import Sequence
 from copy import deepcopy
 from functools import partial 
 from operator import mul, truediv
+import logging
 
 class Toolbox(object):
     """A toolbox for evolution that contains the evolutionary operators. At
@@ -176,6 +177,8 @@ class Fitness(object):
         if len(values) > 0:
             self.values = values
         
+        logging.debug("New fitness {}".format(self))
+        
     def getValues(self):
         try:
             result = tuple(map(truediv, self.wvalues, self.weights))
@@ -183,6 +186,7 @@ class Fitness(object):
             print("wvalues: {} weights: {}".format(self.wvalues, self.weights))
             raise
         return result
+    
     def setValues(self, values):
         try:
             self.wvalues = tuple(map(mul, values, self.weights))
@@ -259,7 +263,7 @@ class Fitness(object):
 
     def __str__(self):
         """Return the values of the Fitness object."""
-        return str(self.values if self.valid else tuple())
+        return str(self.values if self.valid else "EMPTY FITNESS")
 
     def __repr__(self):
         """Return the Python code to build a copy of the object."""

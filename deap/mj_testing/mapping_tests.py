@@ -15,6 +15,7 @@ from utility_inspect import whoami, whosdaddy, listObject
 # Testing imports
 from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Individual2, Objective
 from deap.design_space import generate_ORM_individual,generate_individuals_table,convert_individual_DB
+from deap.benchmarks import mj as mj
 
 from deap import creator, base
 import sqlalchemy as sa
@@ -99,7 +100,7 @@ class MappingBasicTests(unittest.TestCase):
         
         print(this_mapping)
         print("Design space; {}".format(this_mapping.design_space))
-        print("Fitness; {}".format(this_mapping.fitness))
+        print("Fitness; {}".format(this_mapping.Fitness))
         print("Individual class; {}".format(this_mapping.Individual))
         print("First variable; {}".format(this_mapping.design_space.basis_set[0]))
         
@@ -302,8 +303,6 @@ class TestMate(unittest.TestCase):
         # Mapping
         self.mapping = Mapping(D1, obj_space1)
 
-        #print([obj[0] for obj in ])
-        #raise        
         
         creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = self.mapping.objective_space.objective_names)
         self.mapping.assign_individual(Individual2)
@@ -327,7 +326,7 @@ class TestMate(unittest.TestCase):
         pop = self.mapping.get_random_population(20)
         toolbox = dp.base.Toolbox()
 
-        from deap.benchmarks import mj as mj
+        
         toolbox.register("evaluate", mj.mj_zdt1_decimal)
     
         util_sa.print_all_pretty_tables(self.engine)

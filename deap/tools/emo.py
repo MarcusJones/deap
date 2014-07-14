@@ -44,7 +44,7 @@ def selNSGA2(individuals, k, nd='standard'):
     chosen = list(chain(*pareto_fronts[:-1]))
     k = k - len(chosen)
     if k > 0:
-        sorted_front = sorted(pareto_fronts[-1], key=attrgetter("fitness.crowding_dist"), reverse=True)
+        sorted_front = sorted(pareto_fronts[-1], key=attrgetter("Fitness.crowding_dist"), reverse=True)
         chosen.extend(sorted_front[:k])
         
     return chosen
@@ -72,7 +72,7 @@ def sortNondominated(individuals, k, first_front_only=False):
 
     map_fit_ind = defaultdict(list)
     for ind in individuals:
-        map_fit_ind[ind.fitness].append(ind)
+        map_fit_ind[ind.Fitness].append(ind)
     fits = map_fit_ind.keys()
     
     current_front = []
@@ -117,28 +117,28 @@ def sortNondominated(individuals, k, first_front_only=False):
 
 
 def mj_str_assignCrowdingDist(individuals):
-    """Assign a crowding distance to each individual's fitness. The 
+    """Assign a crowding distance to each individual's Fitness. The 
     crowding distance can be retrieve via the :attr:`crowding_dist` 
-    attribute of each individual's fitness.
+    attribute of each individual's Fitness.
     """
     if len(individuals) == 0:
         return
     
     distances = [0.0] * len(individuals)
-#     print(individuals[0].fitness.valid)
-#     this_vals = individuals[0].fitness.wvalues
-#     this_weights = individuals[0].fitness.weights
+#     print(individuals[0].Fitness.valid)
+#     this_vals = individuals[0].Fitness.wvalues
+#     this_weights = individuals[0].Fitness.weights
 #     print(this_vals, this_weights)
 #     for val, w in zip(this_vals,this_weights):
 #         print(val, w)
 #         print(truediv(val,w))
     #this_map = map(truediv, this_vals, this_weights)
-    #print(individuals[0].fitness.weights)
-    #print([(ind.fitness.values, i) for i, ind in enumerate(individuals)])
+    #print(individuals[0].Fitness.weights)
+    #print([(ind.Fitness.values, i) for i, ind in enumerate(individuals)])
     #print(tuple(map(truediv, self.wvalues, self.weights)))
-    crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
+    crowd = [(ind.Fitness.values, i) for i, ind in enumerate(individuals)]
     #raise Exception
-    nobj = len(individuals[0].fitness.values)
+    nobj = len(individuals[0].Fitness.values)
     
     for i in xrange(nobj):
         crowd.sort(key=lambda element: element[0][i])
@@ -151,22 +151,22 @@ def mj_str_assignCrowdingDist(individuals):
             distances[cur[1]] += (next[0][i] - prev[0][i]) / norm
 
     for i, dist in enumerate(distances):
-        individuals[i].fitness.crowding_dist = dist
+        individuals[i].Fitness.crowding_dist = dist
 
 
 
 def assignCrowdingDist(individuals):
-    """Assign a crowding distance to each individual's fitness. The 
+    """Assign a crowding distance to each individual's Fitness. The 
     crowding distance can be retrieve via the :attr:`crowding_dist` 
-    attribute of each individual's fitness.
+    attribute of each individual's Fitness.
     """
     if len(individuals) == 0:
         return
     
     distances = [0.0] * len(individuals)
-    crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
+    crowd = [(ind.Fitness.values, i) for i, ind in enumerate(individuals)]
     
-    nobj = len(individuals[0].fitness.values)
+    nobj = len(individuals[0].Fitness.values)
     
     for i in xrange(nobj):
         crowd.sort(key=lambda element: element[0][i])
@@ -179,7 +179,7 @@ def assignCrowdingDist(individuals):
             distances[cur[1]] += (next[0][i] - prev[0][i]) / norm
 
     for i, dist in enumerate(distances):
-        individuals[i].fitness.crowding_dist = dist
+        individuals[i].Fitness.crowding_dist = dist
 
 def selTournamentDCD(individuals, k):
     """Tournament selection based on dominance (D) between two individuals, if
@@ -201,14 +201,14 @@ def selTournamentDCD(individuals, k):
     assert len(individuals) % 4 == 0, "This selection MUST operate on population multiples of 4!"
     
     def tourn(ind1, ind2):
-        if ind1.fitness.dominates(ind2.fitness):
+        if ind1.Fitness.dominates(ind2.Fitness):
             return ind1
-        elif ind2.fitness.dominates(ind1.fitness):
+        elif ind2.Fitness.dominates(ind1.Fitness):
             return ind2
 
-        if ind1.fitness.crowding_dist < ind2.fitness.crowding_dist:
+        if ind1.Fitness.crowding_dist < ind2.Fitness.crowding_dist:
             return ind2
-        elif ind1.fitness.crowding_dist > ind2.fitness.crowding_dist:
+        elif ind1.Fitness.crowding_dist > ind2.Fitness.crowding_dist:
             return ind1
 
         if random.random() <= 0.5:
@@ -239,8 +239,8 @@ def identity(obj):
 def isDominated(wvalues1, wvalues2):
     """Returns whether or not *wvalues1* dominates *wvalues2*.
     
-    :param wvalues1: The weighted fitness values that would be dominated.
-    :param wvalues2: The weighted fitness values of the dominant.
+    :param wvalues1: The weighted Fitness values that would be dominated.
+    :param wvalues2: The weighted Fitness values of the dominant.
     :returns: :obj:`True` if wvalues2 dominates wvalues1, :obj:`False`
               otherwise.
     """
@@ -279,10 +279,10 @@ def sortLogNondominated(individuals, k, first_front_only=False):
     #Separate individuals according to unique fitnesses
     unique_fits = defaultdict(list)
     for i, ind in enumerate(individuals):
-        unique_fits[ind.fitness.wvalues].append(ind)
+        unique_fits[ind.Fitness.wvalues].append(ind)
     
     #Launch the sorting algorithm
-    obj = len(individuals[0].fitness.wvalues)-1
+    obj = len(individuals[0].Fitness.wvalues)-1
     fitnesses = unique_fits.keys()
     front = dict.fromkeys(fitnesses, 0)
 
@@ -494,7 +494,7 @@ def selSPEA2(individuals, k):
        strength Pareto evolutionary algorithm", 2001.
     """
     N = len(individuals)
-    L = len(individuals[0].fitness.values)
+    L = len(individuals[0].Fitness.values)
     K = math.sqrt(N)
     strength_fits = [0] * N
     fits = [0] * N
@@ -502,10 +502,10 @@ def selSPEA2(individuals, k):
     
     for i, ind_i in enumerate(individuals):
         for j, ind_j in enumerate(individuals[i+1:], i+1):
-            if ind_i.fitness.dominates(ind_j.fitness):
+            if ind_i.Fitness.dominates(ind_j.Fitness):
                 strength_fits[i] += 1
                 dominating_inds[j].append(i)
-            elif ind_j.fitness.dominates(ind_i.fitness):
+            elif ind_j.Fitness.dominates(ind_i.Fitness):
                 strength_fits[j] += 1
                 dominating_inds[i].append(j)
     
@@ -522,8 +522,8 @@ def selSPEA2(individuals, k):
             for j in xrange(i + 1, N):
                 dist = 0.0
                 for l in xrange(L):
-                    val = individuals[i].fitness.values[l] - \
-                          individuals[j].fitness.values[l]
+                    val = individuals[i].Fitness.values[l] - \
+                          individuals[j].Fitness.values[l]
                     dist += val * val
                 distances[j] = dist
             kth_dist = _randomizedSelect(distances, 0, N - 1, K)
@@ -544,8 +544,8 @@ def selSPEA2(individuals, k):
             for j in xrange(i + 1, N):
                 dist = 0.0
                 for l in xrange(L):
-                    val = individuals[chosen_indices[i]].fitness.values[l] - \
-                          individuals[chosen_indices[j]].fitness.values[l]
+                    val = individuals[chosen_indices[i]].Fitness.values[l] - \
+                          individuals[chosen_indices[j]].Fitness.values[l]
                     dist += val * val
                 distances[i][j] = dist
                 distances[j][i] = dist
