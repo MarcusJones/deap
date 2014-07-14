@@ -71,8 +71,13 @@ def printpop(msg,pop):
     print('*****************', msg)
     for ind in pop:
         print(ind)
-
-
+        
+def printhashes(pop, msg=""):
+    
+    hash_list = [ind.hash for ind in pop]
+    print("{:>20} - {}".format(msg,sorted(hash_list)))
+    
+    
 def main(seed=None):
 
     engine = sa.create_engine('sqlite:///:memory:', echo=0)
@@ -102,9 +107,9 @@ def main(seed=None):
     BOUND_LOW, BOUND_UP = 0.0, 1.0
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     RES_STR = '0.001'
-    NGEN = 100
+    NGEN = 10
     POPSIZE = 4*2
-    MU = 100
+    #MU = 100
     CXPB = 0.9
 
     #===========================================================================
@@ -175,7 +180,7 @@ def main(seed=None):
     #                 low=BOUND_LOW, up=BOUND_UP, eta=20.0)
     toolbox.register("mutate", tools.mj_string_mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
                      eta=20.0, indpb=1.0/NDIM)
-    toolbox.register("select", tools.selNSGA2)
+    toolbox.register("select", tools.mj_selNSGA2)
 
     #===========================================================================
     # Create the population
@@ -231,11 +236,13 @@ def main(seed=None):
         
     # And re-copy
     pop = final_pop
-    
+    printhashes(pop,"First pop")
     #===========================================================================
     # Selection
     #===========================================================================
     pop = toolbox.select(pop, len(pop))
+    
+    printhashes(pop,"Selected pop")
 
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
     record = stats.compile(pop)
@@ -247,12 +254,13 @@ def main(seed=None):
         #=======================================================================
         # Select the population
         #=======================================================================
-        offspring = tools.selTournamentDCD(pop, len(pop))
+        offspring = tools.mj_selTournamentDCD(pop, len(pop))
         offspring = [mapping.clone_ind(ind) for ind in offspring]
         #logging.debug("Selected and cloned {} offspring".format(len(offspring)))
         
         #printpop('Offspring',pop)
-        
+        printhashes(offspring,"Cloned offspring g{}".format(gen))
+
         #=======================================================================
         # Mate and mutate
         #=======================================================================
@@ -265,7 +273,8 @@ def main(seed=None):
             toolbox.mutate(ind2)
             del ind1.Fitness.values, ind2.Fitness.values
         #logging.debug("Operated over {} pairs".format(len(pairs)))
-
+        printhashes(offspring,"Varied offspring g{}".format(gen))
+        
         #=======================================================================
         # Evaluate the individuals
         #=======================================================================
@@ -293,24 +302,30 @@ def main(seed=None):
                     
                 eval_offspring.append(ind)
         #logging.debug("Retrieved {}, Evaluated {}".format(retrieval_count,eval_count))
-
+        
         session.commit()
-
+        
         combined_pop = pop + eval_offspring
+        
+        
+        
 
         
         #printpop('Parents',pop)
         
         # Select the next generation population
-        pop = toolbox.select(combined_pop, MU)
+        pop = toolbox.select(combined_pop, POPSIZE)
         record = stats.compile(pop)
         logbook.record(gen=gen, evals=eval_count, **record)
         print(logbook.stream)
         
-        
+    
 
-    util_sa.print_all_pretty_tables(engine, 20000)
+    #util_sa.print_all_pretty_tables(engine, 20000)
+    util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
 
+    #print("{} individuals seen".format(len(hash_list)))
+    #print("{} individuals unique".format(len(set(hash_list))))
     return pop, stats
 
 def showconvergence(pop):
