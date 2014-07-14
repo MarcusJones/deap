@@ -175,7 +175,7 @@ def main(seed=None):
     #                 low=BOUND_LOW, up=BOUND_UP, eta=20.0)
     toolbox.register("mutate", tools.mj_string_mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
                      eta=20.0, indpb=1.0/NDIM)
-    toolbox.register("select", tools.mj_selNSGA2)
+    toolbox.register("select", tools.selNSGA2)
 
     #===========================================================================
     # Create the population
