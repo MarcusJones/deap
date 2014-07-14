@@ -24,6 +24,7 @@ also contains utility tools to enhance the basic algorithms with
 from .constraint import *
 from .crossover import *
 from .emo import *
+from .mj_emo import *
 from .init import *
 from .migration import *
 from .mutation import *
