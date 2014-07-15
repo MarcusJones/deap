@@ -42,6 +42,67 @@ def mutGaussian(individual, mu, sigma, indpb):
     
     return individual,
 
+def mj_random_jump(individual, jumpsize, indpb):
+    for gene in individual.chromosome:
+        assert gene.vtype == 'float'
+        assert gene.ordered    
+    flg_verb = None
+    
+    #flg_verb = 1
+
+    if flg_verb:
+        original = individual
+        print("BEFORE: {}".format(original))     
+        
+        #print(individual)
+        #print(individual[:])
+    
+
+    
+    
+    possible_jumps = range(-jumpsize,jumpsize+1,1)
+    possible_jumps.remove(0)
+    #print("Possible jumps:",possible_jumps)
+    for gene in individual.chromosome:
+        if flg_verb:
+            pass
+            #print(gene, gene.index)
+        
+        max = len(gene.variable_tuple)-1
+        min = 0 
+        #print(gene, gene.index,max, min)
+        #print()
+        check = random.random()
+        #print("Random",check,"indpb;",indpb)
+        if check <= indpb:
+            
+            jump = random.choice(possible_jumps)
+            if flg_verb:
+                pass
+                #print("Jump {}".format(jump))            
+            newindex = gene.index + jump
+            if newindex < min:
+                newindex = min
+            if newindex > max:
+                newindex = max
+                
+            #print("Jump:",jump)
+            gene.index = newindex
+        if flg_verb:
+            pass       
+            #print(gene, gene.index)
+    
+    individual.re_init()
+    if flg_verb:
+        print("AFTER : {}".format(original, individual))        
+        #print(individual)
+        #print(individual[:])
+    #print()
+    
+    return individual
+
+    #raise Exception
+
 def mj_string_mutPolynomialBounded(individual, eta, low, up, indpb):
     """Polynomial mutation as implemented in original NSGA-II algorithm in
     C by Deb.
@@ -56,6 +117,7 @@ def mj_string_mutPolynomialBounded(individual, eta, low, up, indpb):
                is the upper bound of the search space.
     :returns: A tuple of one individual.
     """
+    
     size = len(individual)
     if not isinstance(low, Sequence):
         low = repeat(low, size)
@@ -256,4 +318,5 @@ def mutESLogNormal(individual, c, indpb):
     return individual,
 
 __all__ = ['mutGaussian', 'mutPolynomialBounded', 'mutShuffleIndexes', 
-           'mutFlipBit', 'mutUniformInt', 'mutESLogNormal', 'mj_string_mutPolynomialBounded']
+           'mutFlipBit', 'mutUniformInt', 'mutESLogNormal', 'mj_string_mutPolynomialBounded',
+           'mj_random_jump']

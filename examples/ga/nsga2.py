@@ -28,13 +28,15 @@ myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
 
 
-import numpy
-import matplotlib
+from deap.mj_utilities.util_graphics import print_res
 
-import matplotlib.pyplot as plt
-print(matplotlib.backends.backend)
-matplotlib.rcParams['backend'] = "TkAgg"
-print(matplotlib.backends.backend)
+import numpy
+#import matplotlib
+
+#import matplotlib.pyplot as plt
+#print(matplotlib.backends.backend)
+#matplotlib.rcParams['backend'] = "TkAgg"
+#print(matplotlib.backends.backend)
 
 from math import sqrt
 
@@ -134,7 +136,9 @@ def main(seed=None):
         logbook.record(gen=gen, evals=len(invalid_ind), **record)
         print(logbook.stream)
 
+
     return pop, logbook
+    
         
 if __name__ == "__main__":
     with open("pareto_front/zdt1_front.json") as optimal_front_data:
@@ -149,14 +153,7 @@ if __name__ == "__main__":
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
     
+    
+    print_res(pop,optimal_front)
 
-    front = numpy.array([ind.fitness.values for ind in pop])
-    optimal_front = numpy.array(optimal_front)
-    plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
-    #print(front)
-    plt.scatter(front[:,0], front[:,1], c="b")
-    plt.axis("tight")
-    #plt.savefig('C:\ExportDir\test1.png')
-    plt.show()
-    plt.savefig('C:\\ExportDir\\out.pdf', transparent=True, bbox_inches='tight', pad_inches=0)
     

@@ -89,8 +89,6 @@ def main(seed=None):
     logbook = tools.Logbook()
     logbook.header = "gen", "evals", "std", "min", "avg", "max"
     
-
-    
     #===========================================================================
     #---Parameters
     #===========================================================================
@@ -336,7 +334,7 @@ def showconvergence(pop):
 
 
     pop.sort(key=lambda x: x.fitness.values)
-
+    
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
     

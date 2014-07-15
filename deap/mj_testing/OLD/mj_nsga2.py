@@ -27,14 +27,15 @@ logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
 myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
 
+from deap.mj_utilities.util_graphics import print_res
 
 import numpy
-import matplotlib
+#import matplotlib
 
-import matplotlib.pyplot as plt
-print(matplotlib.backends.backend)
-matplotlib.rcParams['backend'] = "TkAgg"
-print(matplotlib.backends.backend)
+#import matplotlib.pyplot as plt
+#print(matplotlib.backends.backend)
+#matplotlib.rcParams['backend'] = "TkAgg"
+#print(matplotlib.backends.backend)
 
 from math import sqrt
 
@@ -150,14 +151,4 @@ if __name__ == "__main__":
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
     
-
-    front = numpy.array([ind.fitness.values for ind in pop])
-    optimal_front = numpy.array(optimal_front)
-    plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
-    #print(front)
-    plt.scatter(front[:,0], front[:,1], c="b")
-    plt.axis("tight")
-    #plt.savefig('C:\ExportDir\test1.png')
-    plt.show()
-    plt.savefig('C:\\ExportDir\\out.pdf', transparent=True, bbox_inches='tight', pad_inches=0)
-    
+    print_res(pop,optimal_front)

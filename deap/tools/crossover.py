@@ -275,6 +275,35 @@ def cxSimulatedBinary(ind1, ind2, eta):
     return ind1, ind2
 
 
+def mj_list_flip(ind1, ind2, indpb):
+    #for gene in ind1.chromosome:
+    #    assert gene.vtype == 'float'
+    #    assert gene.ordered    
+    
+    #print([gene.index for gene in ind1.chromosome])
+    #print([gene.index for gene in ind2.chromosome])    
+    new_pairs = list()
+    for pair in zip(ind1.chromosome, ind2.chromosome):
+        pair = list(pair)        
+        check = random.random()
+        if check <= indpb:
+            #print(list(pair))
+            pair.reverse()
+            #print(list(pair).reverse())
+            #new_pairs.append(list(pair).reverse())
+        new_pairs.append(pair)
+    
+    #print(new_pairs)
+    chromo1, chromo2 = zip(*new_pairs)
+    ind1.chromosome = chromo1
+    ind2.chromosome = chromo2
+    ind1.re_init()
+    ind2.re_init()
+    #print([gene.index for gene in ind1.chromosome])
+    #print([gene.index for gene in ind2.chromosome])    
+    #raise Exception
+    
+
 def mj_string_cxSimulatedBinaryBounded(ind1, ind2, eta, low, up):
     """Executes a simulated binary crossover that modify in-place the input
     individuals. The simulated binary crossover expects :term:`sequence`
@@ -516,4 +545,4 @@ __all__ = ['cxOnePoint', 'cxTwoPoint', 'cxUniform', 'cxPartialyMatched',
            'cxESBlend', 'cxESTwoPoint', 'mj_string_cxSimulatedBinaryBounded']
 
 # Deprecated functions
-__all__.extend(['cxTwoPoints', 'cxESTwoPoints'])
+__all__.extend(['cxTwoPoints', 'cxESTwoPoints', 'mj_list_flip'])

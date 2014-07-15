@@ -381,7 +381,10 @@ class VariableObject(object):
         self.ordered = ordered
 
         #logging.debug("{}".format(self))
-
+    
+    def __str__(self):
+        return self.this_val_str()
+    
     @property
     def val_str(self):
         return str(self.variable_tuple[self.index])
@@ -681,6 +684,19 @@ class Variable(DB_Base):
         return self
 
 
+class Generation(DB_Base):
+    __tablename__ = 'Generations'
+    id = Column(Integer, primary_key=True)
+    gen = Column(Integer)    
+    individual = Column(Integer)
+    
+    
+    def __init__(self, name, goal):
+        self.name = name
+        self.goal = goal
+
+
+
 class Objective(DB_Base):
     __tablename__ = 'Objectives'
     id = Column(Integer, primary_key=True)
@@ -802,9 +818,25 @@ class Individual2(list):
         
         self.chromosome = chromosome
         self.fitness = fitness
-        self.hash = self.__hash__()
+        #self.hash = self.__hash__()
         
         #logging.debug("Individual instantiated; {}".format(self))
+        
+    @property    
+    def hash(self):
+        return self.__hash__()
+    
+    def re_init(self):
+        list_items = list()
+        for gene in self.chromosome:
+            if gene.vtype == 'float':
+                list_items.append(float(gene.val_str))
+            elif gene.vtype == 'string':
+                list_items.append(gene.val_str)
+            else:
+                raise Exception("{}".format(gene.vtype))      
+        super(Individual2, self).__init__(list_items)
+        
     
     def recreate_fitness(self):
         raise
@@ -823,7 +855,10 @@ class Individual2(list):
         But this would be expensive and complicated to store in a database
         The hash compresses this information to an integer value which should have no collisions
         """
-        return hash(tuple(zip(self[:])))
+        
+        index_list = [gene.index for gene in self.chromosome]
+        return hash(tuple(index_list))
+        #return hash(tuple(zip(self[:])))
 
     #def __repr__(self):
     #    return(self.__str__())
