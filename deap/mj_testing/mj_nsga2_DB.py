@@ -12,57 +12,52 @@
 #
 #    You should have received a copy of the GNU Lesser General Public
 #    License along with DEAP. If not, see <http://www.gnu.org/licenses/>.
-#--- Import settings
+#===============================================================================
+# Import settings and logger
+#===============================================================================
 from __future__ import division
 from __future__ import print_function
-
-from utility_inspect import whoami, whosdaddy, listObject
-import unittest
 from deap.mj_config.deapconfig import *
-import logging.config
 
+import logging.config
 logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
 myLogger = logging.getLogger()
-#myLogger = logging.getLogger('sqlalchemy.engine')
-#myLogger.setLevel("DEBUG")
 myLogger.setLevel("DEBUG")
 from UtilityLogger import loggerCritical
 
-#logging.basicConfig()
-#logging.getLogger('sqlalchemy.engine').setLevel(logging.DEBUG)
 
-#--- Import other
+#===============================================================================
+# Utilities
+#===============================================================================
+from deap.mj_utilities.util_graphics import print_res
+import utility_SQL_alchemy as util_sa
+from deap.mj_utilities.db_base import DB_Base
+
+#===============================================================================
+# Import other
+#===============================================================================
 import numpy as np
 import json
-#import matplotlib.pyplot as plt
-#from math import sqrt
-import utility_SQL_alchemy as util_sa
-#--- Import design space
+import sqlalchemy as sa
+
+#===============================================================================
+# Import design space
+#===============================================================================
 from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective, Individual2
 from deap.design_space import generate_individuals_table,generate_ORM_individual,convert_individual_DB, convert_DB_individual
-from deap.mj_utilities.db_base import DB_Base
 from deap.benchmarks import mj as mj
 #from deap.benchmarks.old_init import zdt1
-#--- Import deap
+
+#===============================================================================
+# Import deap
+#===============================================================================
 import random
-#from deap.mj_evaluators.zdt1_exe import evaluate
-#import array
 from deap.benchmarks.tools import diversity, convergence
-#from deap import algorithms
 from deap import base
-#from deap import benchmarks
 from deap import creator
 from deap import tools
-#from deap import selTournamentDCD
 
 
-import sqlalchemy as sa
-#from sqlalchemy import Column, Integer, String
-#from sqlalchemy.orm.exc import MultipleResultsFound,NoResultFound
-
-
-#---
-#def 
 
 def printpop(msg,pop):
     print('*****************', msg)
@@ -70,7 +65,6 @@ def printpop(msg,pop):
         print(ind)
         
 def printhashes(pop, msg=""):
-    
     hash_list = [ind.hash for ind in pop]
     print("{:>20} - {}".format(msg,sorted(hash_list)))
     
@@ -98,22 +92,23 @@ def main(seed=None):
 
     
     #===========================================================================
-    # Parameters
+    #---Parameters
     #===========================================================================
     NDIM = 30
-    BOUND_LOW, BOUND_UP = 0.0, 1.0
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.001'
-    NGEN = 10
-    POPSIZE = 4*2
+    #RES_STR = '0.002'
+    RES_STR = '0.01'
+    NGEN = 250
+    POPSIZE = 4*25
     #MU = 100
     CXPB = 0.9
-
+    PROB_CX = 0.1
+    JUMPSIZE = 10
     #===========================================================================
     # Variables and design space
     #===========================================================================
     # Create basis set
-    var_names = ['var'+'a'*(num+1) for num in range(NDIM)]    
+    var_names = ['var{}'.format(num) for num in range(NDIM)]    
     with loggerCritical():
         basis_set = [Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
     
@@ -171,12 +166,11 @@ def main(seed=None):
     #===========================================================================
     # Operators
     #===========================================================================
-    toolbox.register("mate", tools.mj_string_cxSimulatedBinaryBounded,
-                     low=BOUND_LOW, up=BOUND_UP, eta=20.0)    
+    
+    toolbox.register("mate", tools.mj_list_flip, indpb = PROB_CX)
     #toolbox.register("mate", tools.cxSimulatedBinaryBounded,
     #                 low=BOUND_LOW, up=BOUND_UP, eta=20.0)
-    toolbox.register("mutate", tools.mj_string_mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP,
-                     eta=20.0, indpb=1.0/NDIM)
+    toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM)
     toolbox.register("select", tools.selNSGA2)
 
     #===========================================================================
@@ -234,6 +228,7 @@ def main(seed=None):
     # And re-copy
     pop = final_pop
     printhashes(pop,"First pop")
+    
     #===========================================================================
     # Selection
     #===========================================================================
@@ -256,21 +251,27 @@ def main(seed=None):
         #logging.debug("Selected and cloned {} offspring".format(len(offspring)))
         
         #printpop('Offspring',pop)
-        printhashes(offspring,"Cloned offspring g{}".format(gen))
+        
+        #printhashes(offspring,"Cloned offspring g{}".format(gen))
 
         #=======================================================================
         # Mate and mutate
         #=======================================================================
+        varied_offspring = list()
         pairs = zip(offspring[::2], offspring[1::2])
         for ind1, ind2 in pairs:
             if random.random() <= CXPB:
                 toolbox.mate(ind1, ind2)
             
+            ind1 = toolbox.mutate(ind1)
+            ind2 = toolbox.mutate(ind2)
             toolbox.mutate(ind1)
-            toolbox.mutate(ind2)
+            toolbox.mutate(ind2)            
             del ind1.fitness.values, ind2.fitness.values
+            
+            varied_offspring.extend([ind1,ind2])
         #logging.debug("Operated over {} pairs".format(len(pairs)))
-        printhashes(offspring,"Varied offspring g{}".format(gen))
+        #printhashes(varied_offspring,"Varied offspring g{}".format(gen))
         
         #=======================================================================
         # Evaluate the individuals
@@ -279,7 +280,7 @@ def main(seed=None):
         eval_count = 0
         retrieval_count = 0
         with loggerCritical():
-            for ind in offspring:
+            for ind in varied_offspring:
                 
                 # First, check if in DB
                 try:
@@ -347,8 +348,19 @@ if __name__ == "__main__":
     #cProfile.run('main()', filename=path_profile)
     
 
+    with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
+        optimal_front = json.load(optimal_front_data)
+    # Use 500 of the 1000 points in the json file
+    optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
+    
     pop, stats = main()
-    #showconvergence(pop)
-    #print(stats)
+    pop.sort(key=lambda x: x.fitness.values)
+    
+    print(stats)
+    print("Convergence: ", convergence(pop, optimal_front))
+    print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+    
+    
+    print_res(pop,optimal_front)
 
 
