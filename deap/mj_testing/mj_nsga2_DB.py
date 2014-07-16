@@ -43,8 +43,10 @@ import sqlalchemy as sa
 #===============================================================================
 # Import design space
 #===============================================================================
-from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective, Individual2
-from deap.design_space import generate_individuals_table,generate_ORM_individual,convert_individual_DB, convert_DB_individual
+#from deap.design_space import Variable, DesignSpace, Mapping, ObjectiveSpace, Objective, Individual2
+#from deap.design_space import generate_individuals_table,generate_ORM_individual,convert_individual_DB, convert_DB_individual
+import deap.design_space as ds
+
 from deap.benchmarks import mj as mj
 #from deap.benchmarks.old_init import zdt1
 
@@ -57,9 +59,7 @@ from deap import base
 from deap import creator
 from deap import tools
 
-
-
-def printpop(msg,pop):
+def printpop(msg, pop):
     print('*****************', msg)
     for ind in pop:
         print(ind)
@@ -68,6 +68,11 @@ def printhashes(pop, msg=""):
     hash_list = [ind.hash for ind in pop]
     print("{:>20} - {}".format(msg,sorted(hash_list)))
     
+
+
+
+
+def evaluate_pop(pop):
     
 def main(seed=None):
 
@@ -96,19 +101,20 @@ def main(seed=None):
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     #RES_STR = '0.002'
     RES_STR = '0.01'
-    NGEN = 250
-    POPSIZE = 4*25
+    NGEN = 10
+    POPSIZE = 4*2
     #MU = 100
     CXPB = 0.9
     PROB_CX = 0.1
     JUMPSIZE = 10
+    
     #===========================================================================
     # Variables and design space
     #===========================================================================
     # Create basis set
     var_names = ['var{}'.format(num) for num in range(NDIM)]    
     with loggerCritical():
-        basis_set = [Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
+        basis_set = [ds.Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
     
     # Add to DB
     for var in basis_set:
@@ -118,27 +124,29 @@ def main(seed=None):
     session.add_all(basis_set)
 
     # Create DSpace
-    thisDspace = DesignSpace(basis_set)
+    thisDspace = ds.DesignSpace(basis_set)
 
     #===========================================================================
     # Objectives
     #===========================================================================
-    # Create OSpace
-    obj1 = Objective('obj1', 'Max')
-    obj2 = Objective('obj2', 'Min')
-    objs = [obj1, obj2]
-    this_obj_space = ObjectiveSpace(objs)
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = ('obj1', 'obj2'))
+        
+    # Create OSpace from Fitness
     
-    # Add to DB
-    for obj in objs:
-        session.add(obj)
+    objs = list()
+    for name,weight in zip(creator.FitnessMin.names,creator.FitnessMin.weights):
+        objs.append(ds.Objective(name,weight))
+    this_obj_space = ds.ObjectiveSpace(objs)
+    session.add_all(objs)    
+    
+
         
     #=======================================================================
     # Results is composed of a class and a table, mapped together        
     #=======================================================================
-    mapping = Mapping(thisDspace, this_obj_space)
-    res_ORM_table = generate_individuals_table(mapping)
-    Results = generate_ORM_individual(mapping)
+    mapping = ds.Mapping(thisDspace, this_obj_space)
+    res_ORM_table = ds.generate_individuals_table(mapping)
+    Results = ds.generate_ORM_individual(mapping)
     sa.orm.mapper(Results, res_ORM_table) 
     
     #===========================================================================
@@ -148,11 +156,7 @@ def main(seed=None):
     session.commit()
     #util_sa.print_all_pretty_tables(engine, 20)
 
-    #===========================================================================
-    # fitness
-    #===========================================================================
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = mapping.objective_space.objective_names)
-    
+
     toolbox = base.Toolbox()
 
     #===========================================================================
@@ -174,16 +178,13 @@ def main(seed=None):
     #===========================================================================
     # Create the population
     #===========================================================================
-    mapping.assign_individual(Individual2)
+    mapping.assign_individual(ds.Individual2)
     mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
-    #print(pop[0])
-    #print(pop[0].vara)
-    #raise
+
     #===========================================================================
     # Flush DB
     #===========================================================================
-    #print(pop)
     DB_Base.metadata.create_all(engine)    
     #session.add_all(pop)
     session.commit()
@@ -202,8 +203,7 @@ def main(seed=None):
             try:
                 query = session.query(Results).filter(Results.hash == ind.hash)
                 res = query.one()
-                ind = convert_DB_individual(res, mapping)
-                #final_pop.append(ind)
+                ind = ds.convert_DB_individual(res, mapping)
                 logging.debug("Retrieved {}".format(ind))
                 
             # Otherwise, do a fresh evaluation
@@ -211,7 +211,7 @@ def main(seed=None):
                 ind = toolbox.evaluate(ind)
                 logging.debug("Evaluated {}".format(ind))
                 eval_count += 1
-                res = convert_individual_DB(Results,ind)
+                res = ds.convert_individual_DB(Results,ind)
                 session.add(res)
             final_pop.append(ind)
     
@@ -226,7 +226,9 @@ def main(seed=None):
     # And re-copy
     pop = final_pop
     printhashes(pop,"First pop")
-    
+
+    gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
+    session.add_all(gen_rows)
     #===========================================================================
     # Selection
     #===========================================================================
@@ -284,7 +286,7 @@ def main(seed=None):
                 try:
                     query = session.query(Results).filter(Results.hash == ind.hash)
                     res = query.one()
-                    ind = convert_DB_individual(res, mapping)
+                    ind = ds.convert_DB_individual(res, mapping)
                     #eval_offspring.append(ind)
                     #logging.debug("Retrieved {}".format(ind))
                     retrieval_count += 1
@@ -293,7 +295,7 @@ def main(seed=None):
                     ind = toolbox.evaluate(ind)
                     #logging.debug("Evaluated {}".format(ind))
                     eval_count += 1
-                    res = convert_individual_DB(Results,ind)
+                    res = ds.convert_individual_DB(Results,ind)
                     session.add(res)
                     
                 eval_offspring.append(ind)
@@ -315,11 +317,22 @@ def main(seed=None):
         logbook.record(gen=gen, evals=eval_count, **record)
         print(logbook.stream)
         
-    
+        #=======================================================================
+        # Add this generation
+        #=======================================================================
+        gen_rows = [ds.Generation(gen,ind.hash) for ind in pop]
+        session.add_all(gen_rows)
+        session.commit() 
 
     #util_sa.print_all_pretty_tables(engine, 20000)
     util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
-
+    util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
+    #engine,metadata
+    #this_frame = util_sa.get_frame_simple(engine,'Results')
+    path_excel_out = r"C:\ExportDir\test.xlsx"
+    util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
+    #print(this_frame)
+    
     #print("{} individuals seen".format(len(hash_list)))
     #print("{} individuals unique".format(len(set(hash_list))))
     return pop, stats
@@ -338,6 +351,10 @@ def showconvergence(pop):
     print("Convergence: ", convergence(pop, optimal_front))
     print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
     
+
+
+
+
     
 if __name__ == "__main__":
 

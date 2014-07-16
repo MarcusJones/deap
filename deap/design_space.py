@@ -76,7 +76,6 @@ def generate_chromosome(basis_set):
 
 #--- Database
 def convert_DB_individual(res, mapping):
-   
     chromosome = list()
     for var in mapping.design_space.basis_set:
         index = getattr(res, "var_c_{}".format(var.name))
@@ -687,13 +686,13 @@ class Variable(DB_Base):
 class Generation(DB_Base):
     __tablename__ = 'Generations'
     id = Column(Integer, primary_key=True)
-    gen = Column(Integer)    
-    individual = Column(Integer)
+    gen = Column(Integer, nullable = False)    
+    individual = Column(Integer, sa.ForeignKey('Results.hash'), nullable = False,)
     
     
-    def __init__(self, name, goal):
-        self.name = name
-        self.goal = goal
+    def __init__(self, gen, individual):
+        self.gen = gen
+        self.individual = individual
 
 
 
@@ -720,8 +719,8 @@ class ObjectiveSpace(object):
         for obj in objective_names:
             assert obj not in  ["hash", "start", "finish"]
 
-        for goal in objective_goals:
-            assert(goal == "Min" or goal == "Max")
+        #for goal in objective_goals:
+        #    assert(goal == "Min" or goal == "Max")
 
         self.objective_names = objective_names
         self.objective_goals = objective_goals
