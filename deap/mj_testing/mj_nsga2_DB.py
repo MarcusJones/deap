@@ -82,6 +82,7 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         for ind in pop:
             # First, check if in DB
             try:
+
                 query = session.query(Results).filter(Results.hash == ind.hash)
                 res = query.one()
                 ind = ds.convert_DB_individual(res, mapping)
@@ -109,9 +110,11 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         
     return final_pop, eval_count
     
-def main(seed=None):
-
-    engine = sa.create_engine('sqlite:///:memory:', echo=0)
+def main(path_db, seed=None):
+    #===========================================================================
+    #---Database
+    #===========================================================================
+    engine = sa.create_engine(path_db, echo=0)
     #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
@@ -142,6 +145,15 @@ def main(seed=None):
     CXPB = 0.9
     PROB_CX = 0.1
     JUMPSIZE = 10
+    toolbox = base.Toolbox()
+    
+    #===========================================================================
+    # Algorithm
+    #===========================================================================
+    toolbox.register("evaluate", mj.mj_zdt1_decimal)
+    toolbox.register("mate", tools.mj_list_flip, indpb = PROB_CX)
+    toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM)
+    toolbox.register("select", tools.selNSGA2)
     
     #===========================================================================
     # Variables and design space
@@ -162,91 +174,58 @@ def main(seed=None):
     thisDspace = ds.DesignSpace(basis_set)
 
     #===========================================================================
-    # Objectives
+    #---Objectives
     #===========================================================================
     creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = ('obj1', 'obj2'))
         
     # Create OSpace from Fitness
-    
     objs = list()
     for name,weight in zip(creator.FitnessMin.names,creator.FitnessMin.weights):
         objs.append(ds.Objective(name,weight))
     this_obj_space = ds.ObjectiveSpace(objs)
     session.add_all(objs)    
-    
-
         
     #=======================================================================
+    #---Mapping
     # Results is composed of a class and a table, mapped together        
     #=======================================================================
     mapping = ds.Mapping(thisDspace, this_obj_space)
     res_ORM_table = ds.generate_individuals_table(mapping)
     Results = ds.generate_ORM_individual(mapping)
     sa.orm.mapper(Results, res_ORM_table) 
-    
-    #===========================================================================
-    # Flush DB
-    #===========================================================================
-    DB_Base.metadata.create_all(engine)    
-    session.commit()
-    #util_sa.print_all_pretty_tables(engine, 20)
-
-
-    toolbox = base.Toolbox()
 
     #===========================================================================
-    # Eval
-    #===========================================================================
-    #toolbox.register("evaluate", old_init.mj_zdt1_decimal)
-    toolbox.register("evaluate", mj.mj_zdt1_decimal)
-
-    #===========================================================================
-    # Operators
+    # First generation    
     #===========================================================================
     
-    toolbox.register("mate", tools.mj_list_flip, indpb = PROB_CX)
-    #toolbox.register("mate", tools.cxSimulatedBinaryBounded,
-    #                 low=BOUND_LOW, up=BOUND_UP, eta=20.0)
-    toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM)
-    toolbox.register("select", tools.selNSGA2)
-
-    #===========================================================================
-    # Create the population
-    #===========================================================================
+    #---Create the population
     mapping.assign_individual(ds.Individual2)
     mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
 
-    #===========================================================================
     # Flush DB
-    #===========================================================================
     DB_Base.metadata.create_all(engine)    
-    #session.add_all(pop)
     session.commit()
 
-    #===========================================================================
     #---Evaluate first pop
-    #===========================================================================
     pop,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
     
     # Add generations
     gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
     session.add_all(gen_rows)
     
-    #===========================================================================
     # Selection
-    #===========================================================================
     pop = toolbox.select(pop, len(pop))
-    
-    printhashes(pop,"Selected pop")
-
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
+    
+    session.commit()
+
     record = stats.compile(pop)
     logbook.record(gen=0, evals=eval_count, **record)
     print(logbook.stream)
-    
+
     for gen in range(1, NGEN):
-        
+
         #=======================================================================
         # Select the population
         #=======================================================================
@@ -281,26 +260,16 @@ def main(seed=None):
         # Evaluate the individuals
         #=======================================================================
         eval_offspring = list()
-        eval_count = 0
-        retrieval_count = 0
-        
-        
-        
-        pop,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
+        #eval_count = 0
+        #retrieval_count = 0
+
+        eval_offspring,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
         
         # Add generations
         gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
         session.add_all(gen_rows)        
-            
-        
 
         combined_pop = pop + eval_offspring
-        
-        
-        
-
-        
-        #printpop('Parents',pop)
         
         # Select the next generation population
         pop = toolbox.select(combined_pop, POPSIZE)
@@ -359,7 +328,9 @@ if __name__ == "__main__":
     # Use 500 of the 1000 points in the json file
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
     
-    pop, stats = main()
+    path_db = r'sqlite:///:memory:'
+    path_db = r"sqlite:///C:\ExportDir\DB\test.sql"
+    pop, stats = main(path_db)
     pop.sort(key=lambda x: x.fitness.values)
     
     print(stats)
