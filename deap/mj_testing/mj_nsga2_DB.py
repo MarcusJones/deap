@@ -25,6 +25,9 @@ myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
 from UtilityLogger import loggerCritical
 
+import deap.mj_utilities.util_db_process as util_dbproc
+
+
 
 #===============================================================================
 # Utilities
@@ -32,7 +35,7 @@ from UtilityLogger import loggerCritical
 from deap.mj_utilities.util_graphics import print_res
 import utility_SQL_alchemy as util_sa
 from deap.mj_utilities.db_base import DB_Base
-
+import utility_path as util_path
 #===============================================================================
 # Import other
 #===============================================================================
@@ -59,6 +62,10 @@ from deap import base
 from deap import creator
 from deap import tools
 
+
+
+
+
 def printpop(msg, pop):
     print('*****************', msg)
     for ind in pop:
@@ -67,11 +74,7 @@ def printpop(msg, pop):
 def printhashes(pop, msg=""):
     hash_list = [ind.hash for ind in pop]
     print("{:>20} - {}".format(msg,sorted(hash_list)))
-    
-
-
-
-
+  
 def evaluate_pop(pop,session,Results,mapping,toolbox):
     #printhashes(pop,"First pop")
     
@@ -82,9 +85,14 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         for ind in pop:
             # First, check if in DB
             try:
-
+                
+                #print(Results.hash)
+                #print(ind.hash)
                 query = session.query(Results).filter(Results.hash == ind.hash)
+                
+                #print(query)
                 res = query.one()
+                #res = 
                 ind = ds.convert_DB_individual(res, mapping)
                 logging.debug("Retrieved {}".format(ind))
                 
@@ -95,13 +103,15 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
                 eval_count += 1
                 res = ds.convert_individual_DB(Results,ind)
                 session.add(res)
+                session.commit()    
+                
             final_pop.append(ind)
-
+    
 
             
     #logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
     
-    session.commit()
+    #session.commit()
     #logging.debug("Committed {} new individuals to DB".format(eval_count))
     
     # Assert that they are indeed evaluated
@@ -114,7 +124,8 @@ def main(path_db, seed=None):
     #===========================================================================
     #---Database
     #===========================================================================
-    engine = sa.create_engine(path_db, echo=0)
+    engine = sa.create_engine("sqlite:///{}".format(path_db), echo=0,listeners=[util_sa.ForeignKeysListener()])
+    #engine = sa.create_engine("mysql:///{}".format(path_db), echo=0,listeners=[util_sa.ForeignKeysListener()])
     #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
@@ -136,9 +147,11 @@ def main(path_db, seed=None):
     #---Parameters
     #===========================================================================
     NDIM = 30
+    NDIM = 2
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     #RES_STR = '0.002'
     RES_STR = '0.01'
+    RES_STR = '0.1'    
     NGEN = 10
     POPSIZE = 4*2
     #MU = 100
@@ -173,6 +186,7 @@ def main(path_db, seed=None):
     # Create DSpace
     thisDspace = ds.DesignSpace(basis_set)
 
+
     #===========================================================================
     #---Objectives
     #===========================================================================
@@ -194,6 +208,12 @@ def main(path_db, seed=None):
     Results = ds.generate_ORM_individual(mapping)
     sa.orm.mapper(Results, res_ORM_table) 
 
+    DB_Base.metadata.create_all(engine)
+    #session.commit()
+    #util_sa.print_all_pretty_tables(engine, 20000)
+    
+    #raise
+    
     #===========================================================================
     # First generation    
     #===========================================================================
@@ -203,11 +223,14 @@ def main(path_db, seed=None):
     mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
 
-    # Flush DB
-    DB_Base.metadata.create_all(engine)    
-    session.commit()
 
     #---Evaluate first pop
+    path_excel_out = r"C:\ExportDir\test_before.xlsx"
+
+    #util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
+    DB_Base.metadata.create_all(engine)
+    session.commit()
+    #raise    
     pop,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
     
     # Add generations
@@ -284,7 +307,6 @@ def main(path_db, seed=None):
         session.add_all(gen_rows)
         session.commit() 
 
-    #util_sa.print_all_pretty_tables(engine, 20000)
     util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
     util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
     #engine,metadata
@@ -314,8 +336,6 @@ def showconvergence(pop):
 
 
 
-
-    
 if __name__ == "__main__":
 
     import cProfile
@@ -328,8 +348,11 @@ if __name__ == "__main__":
     # Use 500 of the 1000 points in the json file
     optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
     
-    path_db = r'sqlite:///:memory:'
-    path_db = r"sqlite:///C:\ExportDir\DB\test.sql"
+    path_db = r':memory:'
+    path_db = r"C:\ExportDir\DB\test.sql"
+    util_path.check_path(path_db)
+    
+    
     pop, stats = main(path_db)
     pop.sort(key=lambda x: x.fitness.values)
     

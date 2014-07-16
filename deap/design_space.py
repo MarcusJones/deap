@@ -78,7 +78,8 @@ def generate_chromosome(basis_set):
 def convert_DB_individual(res, mapping):
     chromosome = list()
     for var in mapping.design_space.basis_set:
-        index = getattr(res, "var_c_{}".format(var.name))
+        index_from_db = getattr(res, "var_c_{}".format(var.name))
+        index = index_from_db - 1
         this_var = var.get_indexed_obj(index)
         chromosome.append(this_var)
 
@@ -101,7 +102,7 @@ def convert_individual_DB(ResultsClass,ind):
     this_res.hash = ind.hash
     
     for gene in ind.chromosome:
-        setattr(this_res, "var_c_{}".format(gene.name),gene.index)
+        setattr(this_res, "var_c_{}".format(gene.name),gene.index+1)
 
     for name,val in zip(ind.fitness.names,ind.fitness.values):
         setattr(this_res, "obj_c_{}".format(name),val)
@@ -161,7 +162,7 @@ def generate_variable_table_class(name):
         __tablename__ = "vector_{}".format(name)
         #__table_args__ = { 'schema': db }
         id = Column(Integer, primary_key=True)
-        value = Column(String)
+        value = Column(String(16), nullable=False, unique=True)
         def __init__(self,value):
             self.value = str(value)
             
@@ -171,7 +172,10 @@ def generate_variable_table_class(name):
         def __repr__(self):
             return self.value    
         
+      
     NewTable.__name__ = "vector_ORM_{}".format(name)
+
+    
     return NewTable
 
 
