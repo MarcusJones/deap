@@ -72,7 +72,42 @@ def printhashes(pop, msg=""):
 
 
 
-def evaluate_pop(pop):
+def evaluate_pop(pop,session,Results,mapping,toolbox):
+    #printhashes(pop,"First pop")
+    
+    eval_count = 0
+    final_pop = list()
+    with loggerCritical():
+        # Only evaluate each individual ONCE
+        for ind in pop:
+            # First, check if in DB
+            try:
+                query = session.query(Results).filter(Results.hash == ind.hash)
+                res = query.one()
+                ind = ds.convert_DB_individual(res, mapping)
+                logging.debug("Retrieved {}".format(ind))
+                
+            # Otherwise, do a fresh evaluation
+            except sa.orm.exc.NoResultFound:
+                ind = toolbox.evaluate(ind)
+                logging.debug("Evaluated {}".format(ind))
+                eval_count += 1
+                res = ds.convert_individual_DB(Results,ind)
+                session.add(res)
+            final_pop.append(ind)
+
+
+            
+    #logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
+    
+    session.commit()
+    #logging.debug("Committed {} new individuals to DB".format(eval_count))
+    
+    # Assert that they are indeed evaluated
+    for ind in final_pop:
+        assert ind.fitness.valid, "{}".format(ind)
+        
+    return final_pop, eval_count
     
 def main(seed=None):
 
@@ -190,45 +225,14 @@ def main(seed=None):
     session.commit()
 
     #===========================================================================
-    # Evaluate first pop
+    #---Evaluate first pop
     #===========================================================================
-    eval_count = 0
+    pop,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
     
-    final_pop = list()
-    with loggerCritical():
-        # Only evaluate each individual ONCE
-        for ind in pop:
-            
-            # First, check if in DB
-            try:
-                query = session.query(Results).filter(Results.hash == ind.hash)
-                res = query.one()
-                ind = ds.convert_DB_individual(res, mapping)
-                logging.debug("Retrieved {}".format(ind))
-                
-            # Otherwise, do a fresh evaluation
-            except sa.orm.exc.NoResultFound:
-                ind = toolbox.evaluate(ind)
-                logging.debug("Evaluated {}".format(ind))
-                eval_count += 1
-                res = ds.convert_individual_DB(Results,ind)
-                session.add(res)
-            final_pop.append(ind)
-    
-    logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
-    session.commit()
-    logging.debug("Committed {} new individuals to DB".format(eval_count))
-
-    # Assert that they are indeed evaluated
-    for ind in final_pop:
-        assert ind.fitness.valid, "{}".format(ind)
-        
-    # And re-copy
-    pop = final_pop
-    printhashes(pop,"First pop")
-
+    # Add generations
     gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
     session.add_all(gen_rows)
+    
     #===========================================================================
     # Selection
     #===========================================================================
@@ -279,30 +283,17 @@ def main(seed=None):
         eval_offspring = list()
         eval_count = 0
         retrieval_count = 0
-        with loggerCritical():
-            for ind in varied_offspring:
-                
-                # First, check if in DB
-                try:
-                    query = session.query(Results).filter(Results.hash == ind.hash)
-                    res = query.one()
-                    ind = ds.convert_DB_individual(res, mapping)
-                    #eval_offspring.append(ind)
-                    #logging.debug("Retrieved {}".format(ind))
-                    retrieval_count += 1
-                # Otherwise, do a fresh evaluation
-                except sa.orm.exc.NoResultFound:
-                    ind = toolbox.evaluate(ind)
-                    #logging.debug("Evaluated {}".format(ind))
-                    eval_count += 1
-                    res = ds.convert_individual_DB(Results,ind)
-                    session.add(res)
-                    
-                eval_offspring.append(ind)
-        #logging.debug("Retrieved {}, Evaluated {}".format(retrieval_count,eval_count))
         
-        session.commit()
         
+        
+        pop,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
+        
+        # Add generations
+        gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
+        session.add_all(gen_rows)        
+            
+        
+
         combined_pop = pop + eval_offspring
         
         
