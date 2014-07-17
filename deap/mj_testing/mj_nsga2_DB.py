@@ -35,6 +35,7 @@ import deap.mj_utilities.util_db_process as util_dbproc
 from deap.mj_utilities.util_graphics import print_res
 import utility_SQL_alchemy as util_sa
 from deap.mj_utilities.db_base import DB_Base
+import deap.mj_utilities.db_base
 import utility_path as util_path
 #===============================================================================
 # Import other
@@ -124,7 +125,7 @@ def main(path_db, seed=None):
     #===========================================================================
     #---Database
     #===========================================================================
-    engine = sa.create_engine("sqlite:///{}".format(path_db), echo=0,listeners=[util_sa.ForeignKeysListener()])
+    engine = sa.create_engine("sqlite:///{}".format(path_db), echo=0, listeners=[util_sa.ForeignKeysListener()])
     #engine = sa.create_engine("mysql:///{}".format(path_db), echo=0,listeners=[util_sa.ForeignKeysListener()])
     #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
     Session = sa.orm.sessionmaker(bind=engine)
@@ -315,6 +316,11 @@ def main(path_db, seed=None):
     util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
     #print(this_frame)
     
+    #Generations.join(Results)
+    qry = session.query(Results,ds.Generation)
+    qry = qry.join(ds.Generation)
+    print(qry)
+    print(qry.all())
     #print("{} individuals seen".format(len(hash_list)))
     #print("{} individuals unique".format(len(set(hash_list))))
     return pop, stats
