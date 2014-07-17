@@ -28,7 +28,6 @@ from UtilityLogger import loggerCritical
 import deap.mj_utilities.util_db_process as util_dbproc
 
 
-
 #===============================================================================
 # Utilities
 #===============================================================================
@@ -148,13 +147,11 @@ def main(path_db, seed=None):
     #---Parameters
     #===========================================================================
     NDIM = 30
-    NDIM = 2
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     #RES_STR = '0.002'
     RES_STR = '0.01'
-    RES_STR = '0.1'    
-    NGEN = 10
-    POPSIZE = 4*2
+    NGEN = 100
+    POPSIZE = 4*10
     #MU = 100
     CXPB = 0.9
     PROB_CX = 0.1

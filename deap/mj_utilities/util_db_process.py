@@ -35,6 +35,7 @@ import numpy as np
 
 import deap.design_space as ds
 
+import scipy.io as sio
 
 def lister(item):
     for i in dir(item):
@@ -133,6 +134,39 @@ def join_test(meta):
 
 
 #--- Utility
+def write_frame_matlab(frame,path,name = 'df'):
+    mdict = {}
+
+    # First get the index from the pandas frame as a regular datetime
+    index = np.array(frame.index.values)
+
+    mdict['index'] = index
+    mdict['data'] = frame.values
+
+    # Header come as a list of tuples
+    headers = frame.columns.values
+    if len(headers.shape) == 1:
+        mdict['headers'] = np.array([headers], dtype=np.object)
+    
+    elif len(headers.shape) == 2:
+        # Convert to a true 2D list for numpy
+        headers = [list(item) for item in headers]
+        headers = np.array(headers, dtype=np.object)
+
+        mdict['headers'] = headers
+
+    
+    if len(frame.columns.names) > 1:
+        mdict['headerDef'] = np.array(frame.columns.names, dtype = np.object)
+    else:
+        mdict['headerDef'] = np.array('Header', dtype = np.object)
+    
+    sio.savemat(path, {name: mdict})
+
+    logging.debug("Saved frame {} to {}".format(frame.shape, path))
+
+
+
 def get_variable_names(meta):
     engine = meta.bind
     var_table = meta.tables["Variables"]
@@ -150,6 +184,7 @@ def get_objective_names(meta):
     results = engine.execute(qry).fetchall()
     names = [name[0] for name in results]
     return names
+
 def get_generations_list(meta):
     engine = meta.bind
     gen_table = meta.tables["Generations"] 
@@ -169,18 +204,82 @@ def get_generations_list(meta):
 
 
 #--- Get dfs
-
-def get_stats_df(meta):
-    engine = meta.bind
+def get_all_gen_stats_df(meta):
+    
+    stats = dict()
+    
     gennums = get_generations_list(meta)
+     
+    #stat = list()
+    df_mean = list()
+    df_std = list()
+    df_max = list()
+    df_min = list()
+    for num in gennums:
+        df = get_one_gen_stats_df(meta,num)
+        #stats_df['mean'] = df.mean() 
+        df_mean.append(df.mean())
+        df_std.append(df.std())
+        df_max.append(df.max())
+        df_min.append(df.min())
+        
+    stats['mean'] = pd.concat(df_mean, axis = 1).T
+    stats['std'] = pd.concat(df_std, axis = 1).T
+    stats['min'] = pd.concat(df_min, axis = 1).T
+    stats['max'] = pd.concat(df_max, axis = 1).T
+    
+    return(stats)
+
+def get_one_gen_stats_df(meta,gennum):
+    engine = meta.bind
     qry = get_generations_qry(meta)
-    qry = qry.where("Generations.gen == 0")
+    qry = qry.where("Generations.gen == {}".format(gennum))
     
-    results = engine.execute(qry)
+    obj_cols = list()
+    for name in get_objective_names(meta):
+        obj_cols.append("Results_obj_c_{}".format(name))
+        
     
-    rows = results.fetchall()
-    print(rows)
-    raise
+    res = engine.execute(qry)
+    
+    rows = res.fetchall()
+    col_names = res.keys()
+    
+    df = pd.DataFrame(data=rows, columns=col_names)
+    df = df[obj_cols]
+    return df
+
+#     df.drop(['Results_start','Results_finish'], axis=1, inplace=True)
+#     for name in get_variable_names(meta):
+#         df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
+#         df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
+#         df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
+#     for name in get_objective_names(meta):
+#         df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
+#     
+#     df.rename(columns={'Results_hash'.format(): 'individual'}, inplace=True)
+#     
+    
+    #print(df)
+    #raise    
+    #return df
+    
+    
+#     print(res._metadata.keys)
+#     
+#     #rows = results.fetchall()
+#     for row in res:
+#         #print(row._metadata)
+#         print(row.keys())
+#         
+#         print(row['"Results_obj_c_{}"'.format(name)])
+#         
+#         #print(row["Results_obj_c_{}".format(name)])
+#     raise
+#     for row in res:
+#         print(row)
+    #print(rows)
+
 
 
 def get_results_df(meta):
@@ -421,9 +520,12 @@ class allTests(unittest.TestCase):
         
     def test030_get_stats(self):
         print("**** TEST {} ****".format(whoami()))
-
-        get_stats_df(self.meta)      
-
+        stats = get_all_gen_stats_df(self.meta)
+        for name,df in stats.iteritems():
+            path = r"c:\ExportDir\Mat\{}.mat".format(name)
+            #print(name,v)
+            #(frame,path,name = name)
+            write_frame_matlab(df,path,name)
 
 #===============================================================================
 # Main
