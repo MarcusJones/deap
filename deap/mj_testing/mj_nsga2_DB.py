@@ -150,7 +150,7 @@ def main(path_db, seed=None):
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     #RES_STR = '0.002'
     RES_STR = '0.01'
-    NGEN = 100
+    NGEN = 250
     POPSIZE = 4*10
     #MU = 100
     CXPB = 0.9
@@ -287,8 +287,8 @@ def main(path_db, seed=None):
         eval_offspring,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
         
         # Add generations
-        gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
-        session.add_all(gen_rows)        
+        #gen_rows = [ds.Generation(gen,ind.hash) for ind in pop]
+        #session.add_all(gen_rows)        
 
         combined_pop = pop + eval_offspring
         

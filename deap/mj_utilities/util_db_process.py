@@ -44,6 +44,9 @@ def lister(item):
 #===============================================================================
 # Code
 #===============================================================================
+
+#--- Utility
+
 def print_tables(session):
     engine =session.bind 
     
@@ -52,8 +55,44 @@ def print_tables(session):
         this_table = util_sa.get_table_object(engine, name)
         print(this_table)
         print(this_table.foreign_keys)
+
+def write_frame_matlab(frame,path,name = 'df'):
+    mdict = {}
+
+    # First get the index from the pandas frame as a regular datetime
+    index = np.array(frame.index.values)
+
+    mdict['index'] = index
+    mdict['data'] = frame.values
+
+    # Header come as a list of tuples
+    headers = frame.columns.values
+    if len(headers.shape) == 1:
+        mdict['headers'] = np.array([headers], dtype=np.object)
+    
+    elif len(headers.shape) == 2:
+        # Convert to a true 2D list for numpy
+        headers = [list(item) for item in headers]
+        headers = np.array(headers, dtype=np.object)
+
+        mdict['headers'] = headers
+
+    
+    if len(frame.columns.names) > 1:
+        mdict['headerDef'] = np.array(frame.columns.names, dtype = np.object)
+    else:
+        mdict['headerDef'] = np.array('Header', dtype = np.object)
+    
+    sio.savemat(path, {name: mdict})
+
+    logging.debug("Saved frame {} to {}".format(frame.shape, path))
+
+
+#--- Simple queries and DataFrames
         
 def get_coverage(meta):
+    """Divide number of evaluations by Cardinality of DesignSpace
+    """
     engine =meta.bind 
 
     # Get number of rows
@@ -76,6 +115,254 @@ def get_coverage(meta):
         #print(vector_table_name)
     logging.debug("{} evaluations out of a cardinality {} designspace".format(num_res,cardinality))
     return num_res/cardinality
+
+
+def get_variable_names(meta):
+    """List of variable names
+    """        
+    engine = meta.bind
+    var_table = meta.tables["Variables"]
+    
+    qry = sa.select([var_table.c.name],from_obj = var_table)
+    results = engine.execute(qry).fetchall()
+    names = [name[0] for name in results]
+    return names
+
+def get_objective_names(meta):
+    """List of objective names
+    """    
+    engine = meta.bind
+    obj_table = meta.tables["Objectives"]
+    
+    qry = sa.select([obj_table.c.name],from_obj = obj_table)
+    results = engine.execute(qry).fetchall()
+    names = [name[0] for name in results]
+    return names
+
+def get_generations_list(meta):
+    """List of generation numbers
+    """
+    engine = meta.bind
+    gen_table = meta.tables["Generations"] 
+    #util_sa.get_table_object(engine, "Generations")
+    
+    qry = sa.select(['*'],from_obj = gen_table)
+    
+    qry = sa.select([gen_table.c.gen],from_obj = gen_table)
+    results = engine.execute(qry).fetchall()
+    #gens = set(results)
+    
+    gens = [g[0] for g in results] 
+    gens = list(set(gens))
+    gens.sort()
+    return(gens) 
+
+
+
+#--- Complex queries and DataFrames
+def get_all_gen_stats_df(meta):
+    """Loop over all generations, return summary stats DF
+    """
+    stats = dict()
+    
+    gennums = get_generations_list(meta)
+     
+    #stat = list()
+    df_mean = list()
+    df_std = list()
+    df_max = list()
+    df_min = list()
+    for num in gennums:
+        df = get_one_gen_stats_df(meta,num)
+        #stats_df['mean'] = df.mean() 
+        df_mean.append(df.mean())
+        df_std.append(df.std())
+        df_max.append(df.max())
+        df_min.append(df.min())
+        
+    stats['mean'] = pd.concat(df_mean, axis = 1).T
+    stats['std'] = pd.concat(df_std, axis = 1).T
+    stats['min'] = pd.concat(df_min, axis = 1).T
+    stats['max'] = pd.concat(df_max, axis = 1).T
+    
+    return(stats)
+
+def get_one_gen_stats_df(meta,gennum):
+    """Get DF from GENERATIONS join RESULTS for gennum
+    """
+    engine = meta.bind
+    qry = get_generations_qry(meta)
+    qry = qry.where("Generations.gen == {}".format(gennum))
+    
+    obj_cols = list()
+    for name in get_objective_names(meta):
+        obj_cols.append("Results_obj_c_{}".format(name))
+        
+    
+    res = engine.execute(qry)
+    
+    rows = res.fetchall()
+    col_names = res.keys()
+    
+    df = pd.DataFrame(data=rows, columns=col_names)
+    df = df[obj_cols]
+    return df
+
+
+def get_results_df(meta):
+    """Generate DF and SQL query returning 
+    RESULTS join *VECTORS"""    
+    engine = meta.bind
+    results_table = meta.tables["Results"]
+
+    
+    qry = results_table
+    
+    # Join each variable dynamically
+    for name in get_variable_names(meta):
+        this_vec_table = meta.tables["vector_{}".format(name)]
+        qry = qry.join(this_vec_table)
+    
+    qry = qry.select(use_labels=True)
+    
+    results = engine.execute(qry)
+    
+    rows = results.fetchall()
+    col_names = results.keys()
+    
+    # Drop ID columns as well
+    df = pd.DataFrame(data=rows, columns=col_names)
+    df.drop(['Results_start','Results_finish'], axis=1, inplace=True)
+    for name in get_variable_names(meta):
+        df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
+        df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
+        df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
+    for name in get_objective_names(meta):
+        df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
+    
+    df.rename(columns={'Results_hash'.format(): 'individual'}, inplace=True)
+    
+
+    return df
+
+def get_generations_qry(meta):
+    """Generate SQL query returning 
+    GENERATIONS join RESULTS join *VECTORS"""
+    
+    
+    gen_table = meta.tables["Generations"]
+    results_table = meta.tables["Results"]
+
+    qry = gen_table.join(results_table)
+    
+    # Join each variable dynamically
+    for name in get_variable_names(meta):
+        this_vec_table = meta.tables["vector_{}".format(name)]
+        qry = qry.join(this_vec_table)
+    
+    qry = qry.select(use_labels=True)
+    
+    return qry
+
+def get_generations_qry_ospace_only(meta):
+    """Generate SQL query returning 
+    GENERATIONS join RESULTS"""    
+    gen_table = meta.tables["Generations"]
+    results_table = meta.tables["Results"]
+
+    qry = gen_table.join(results_table)
+    
+    qry = qry.select(use_labels=True)
+    
+    return qry
+
+
+def get_generations_df(meta):
+    """Generate DataFrame from
+    GENERATIONS join RESULTS join *VECTORS
+    """
+    
+    engine = meta.bind
+    
+    qry = get_generations_qry(meta)
+    results = engine.execute(qry)
+    
+    rows = results.fetchall()
+    col_names = results.keys()
+    
+    # Drop ID columns as well
+    df = pd.DataFrame(data=rows, columns=col_names)
+    df = df.set_index('Generations_id')
+    df.drop(['Results_hash', 'Results_start','Results_finish'], axis=1, inplace=True)
+    for name in get_variable_names(meta):
+        df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
+        df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
+        df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
+    for name in get_objective_names(meta):
+        df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
+    
+    df.rename(columns={'Generations_individual'.format(): 'individual'}, inplace=True)
+    
+    return df
+
+
+def get_generations_Ospace_df(meta):
+    """Generate DataFrame from
+    GENERATIONS join RESULTS
+    """
+        
+    engine = meta.bind
+    
+    qry = get_generations_qry_ospace_only(meta)
+    results = engine.execute(qry)
+    
+    rows = results.fetchall()
+    col_names = results.keys()
+    
+    # Drop ID columns as well
+    df = pd.DataFrame(data=rows, columns=col_names)
+    df = df.set_index('Generations_id')
+    df.drop(['Results_hash', 'Results_start','Results_finish'], axis=1, inplace=True)
+    for name in get_variable_names(meta):
+        df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
+        df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
+    for name in get_objective_names(meta):
+        df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
+    
+    df.rename(columns={'Generations_individual'.format(): 'individual'}, inplace=True)
+
+    return df
+
+
+
+#--- OLD
+def old(session):
+    table_names = util_sa.get_table_names(engine)
+    print(table_names)    
+    var_table = util_sa.get_table_object(engine, "Results")
+    print(var_table)
+    lister(var_table)
+    print(var_table.foreign_keys)
+    raise
+    var_rows = util_sa.get_dict(engine, var_table)
+    print(var_rows)
+        
+    print(session)
+    print(dir(session))
+    #util_sa.get_table_names(engine)
+    engine =session.bind 
+    table_names = util_sa.get_table_names(engine)
+
+    var_table = util_sa.get_table_object(engine, "Variables")  
+    var_rows = util_sa.get_dict(engine, var_table)
+    print(var_rows)
+    
+    print(table_names)  
+    query = session.query(ds.Generation)#.filter(ds.Results.hash == ind.hash)
+    res = query.all()
+#     for r in res:
+#         print(r)
+
 
 def join_test(meta):
     #metadata = sa.MetaData(bind=engine)
@@ -132,257 +419,6 @@ def join_test(meta):
     #lister(fk)
 
 
-
-#--- Utility
-def write_frame_matlab(frame,path,name = 'df'):
-    mdict = {}
-
-    # First get the index from the pandas frame as a regular datetime
-    index = np.array(frame.index.values)
-
-    mdict['index'] = index
-    mdict['data'] = frame.values
-
-    # Header come as a list of tuples
-    headers = frame.columns.values
-    if len(headers.shape) == 1:
-        mdict['headers'] = np.array([headers], dtype=np.object)
-    
-    elif len(headers.shape) == 2:
-        # Convert to a true 2D list for numpy
-        headers = [list(item) for item in headers]
-        headers = np.array(headers, dtype=np.object)
-
-        mdict['headers'] = headers
-
-    
-    if len(frame.columns.names) > 1:
-        mdict['headerDef'] = np.array(frame.columns.names, dtype = np.object)
-    else:
-        mdict['headerDef'] = np.array('Header', dtype = np.object)
-    
-    sio.savemat(path, {name: mdict})
-
-    logging.debug("Saved frame {} to {}".format(frame.shape, path))
-
-
-
-def get_variable_names(meta):
-    engine = meta.bind
-    var_table = meta.tables["Variables"]
-    
-    qry = sa.select([var_table.c.name],from_obj = var_table)
-    results = engine.execute(qry).fetchall()
-    names = [name[0] for name in results]
-    return names
-
-def get_objective_names(meta):
-    engine = meta.bind
-    obj_table = meta.tables["Objectives"]
-    
-    qry = sa.select([obj_table.c.name],from_obj = obj_table)
-    results = engine.execute(qry).fetchall()
-    names = [name[0] for name in results]
-    return names
-
-def get_generations_list(meta):
-    engine = meta.bind
-    gen_table = meta.tables["Generations"] 
-    #util_sa.get_table_object(engine, "Generations")
-    
-    qry = sa.select(['*'],from_obj = gen_table)
-    
-    qry = sa.select([gen_table.c.gen],from_obj = gen_table)
-    results = engine.execute(qry).fetchall()
-    #gens = set(results)
-    
-    gens = [g[0] for g in results] 
-    gens = list(set(gens))
-    gens.sort()
-    return(gens) 
-
-
-
-#--- Get dfs
-def get_all_gen_stats_df(meta):
-    
-    stats = dict()
-    
-    gennums = get_generations_list(meta)
-     
-    #stat = list()
-    df_mean = list()
-    df_std = list()
-    df_max = list()
-    df_min = list()
-    for num in gennums:
-        df = get_one_gen_stats_df(meta,num)
-        #stats_df['mean'] = df.mean() 
-        df_mean.append(df.mean())
-        df_std.append(df.std())
-        df_max.append(df.max())
-        df_min.append(df.min())
-        
-    stats['mean'] = pd.concat(df_mean, axis = 1).T
-    stats['std'] = pd.concat(df_std, axis = 1).T
-    stats['min'] = pd.concat(df_min, axis = 1).T
-    stats['max'] = pd.concat(df_max, axis = 1).T
-    
-    return(stats)
-
-def get_one_gen_stats_df(meta,gennum):
-    engine = meta.bind
-    qry = get_generations_qry(meta)
-    qry = qry.where("Generations.gen == {}".format(gennum))
-    
-    obj_cols = list()
-    for name in get_objective_names(meta):
-        obj_cols.append("Results_obj_c_{}".format(name))
-        
-    
-    res = engine.execute(qry)
-    
-    rows = res.fetchall()
-    col_names = res.keys()
-    
-    df = pd.DataFrame(data=rows, columns=col_names)
-    df = df[obj_cols]
-    return df
-
-#     df.drop(['Results_start','Results_finish'], axis=1, inplace=True)
-#     for name in get_variable_names(meta):
-#         df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
-#         df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
-#         df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
-#     for name in get_objective_names(meta):
-#         df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
-#     
-#     df.rename(columns={'Results_hash'.format(): 'individual'}, inplace=True)
-#     
-    
-    #print(df)
-    #raise    
-    #return df
-    
-    
-#     print(res._metadata.keys)
-#     
-#     #rows = results.fetchall()
-#     for row in res:
-#         #print(row._metadata)
-#         print(row.keys())
-#         
-#         print(row['"Results_obj_c_{}"'.format(name)])
-#         
-#         #print(row["Results_obj_c_{}".format(name)])
-#     raise
-#     for row in res:
-#         print(row)
-    #print(rows)
-
-
-
-def get_results_df(meta):
-    engine = meta.bind
-    results_table = meta.tables["Results"]
-
-    
-    qry = results_table
-    
-    # Join each variable dynamically
-    for name in get_variable_names(meta):
-        this_vec_table = meta.tables["vector_{}".format(name)]
-        qry = qry.join(this_vec_table)
-    
-    qry = qry.select(use_labels=True)
-    
-    results = engine.execute(qry)
-    
-    rows = results.fetchall()
-    col_names = results.keys()
-    
-    # Drop ID columns as well
-    df = pd.DataFrame(data=rows, columns=col_names)
-    df.drop(['Results_start','Results_finish'], axis=1, inplace=True)
-    for name in get_variable_names(meta):
-        df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
-        df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
-        df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
-    for name in get_objective_names(meta):
-        df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
-    
-    df.rename(columns={'Results_hash'.format(): 'individual'}, inplace=True)
-    
-
-    return df
-
-def get_generations_qry(meta):
-    gen_table = meta.tables["Generations"]
-    results_table = meta.tables["Results"]
-
-    qry = gen_table.join(results_table)
-    
-    # Join each variable dynamically
-    for name in get_variable_names(meta):
-        this_vec_table = meta.tables["vector_{}".format(name)]
-        qry = qry.join(this_vec_table)
-    
-    qry = qry.select(use_labels=True)
-    
-    return qry
-
-def get_generations_df(meta):
-    engine = meta.bind
-    
-    qry = get_generations_qry(meta)
-    results = engine.execute(qry)
-    
-    rows = results.fetchall()
-    col_names = results.keys()
-    
-    # Drop ID columns as well
-    df = pd.DataFrame(data=rows, columns=col_names)
-    df = df.set_index('Generations_id')
-    df.drop(['Results_hash', 'Results_start','Results_finish'], axis=1, inplace=True)
-    for name in get_variable_names(meta):
-        df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
-        df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
-        df.rename(columns={'vector_{}_value'.format(name): name}, inplace=True)
-    for name in get_objective_names(meta):
-        df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
-    
-    df.rename(columns={'Generations_individual'.format(): 'individual'}, inplace=True)
-    
-    return df
-
-
-#--- OLD
-def old(session):
-    table_names = util_sa.get_table_names(engine)
-    print(table_names)    
-    var_table = util_sa.get_table_object(engine, "Results")
-    print(var_table)
-    lister(var_table)
-    print(var_table.foreign_keys)
-    raise
-    var_rows = util_sa.get_dict(engine, var_table)
-    print(var_rows)
-        
-    print(session)
-    print(dir(session))
-    #util_sa.get_table_names(engine)
-    engine =session.bind 
-    table_names = util_sa.get_table_names(engine)
-
-    var_table = util_sa.get_table_object(engine, "Variables")  
-    var_rows = util_sa.get_dict(engine, var_table)
-    print(var_rows)
-    
-    print(table_names)  
-    query = session.query(ds.Generation)#.filter(ds.Results.hash == ind.hash)
-    res = query.all()
-#     for r in res:
-#         print(r)
 
 
 def compile_query(query):
@@ -513,14 +549,25 @@ class allTests(unittest.TestCase):
 
         
         res = get_results_df(self.meta)
+        print("Results")
         print(res)
         
         gens = get_generations_df(self.meta)
+        print("Generations")
         print(gens)
-        
-    def test030_get_stats(self):
+    
+    def test030_get_write_ospace(self):
+        df = get_generations_Ospace_df(self.meta)
+        #print(df)
+        name = 'generations'
+        path = r"c:\ExportDir\Mat\{}.mat".format(name)
+        write_frame_matlab(df,path,name)    
+    def test040_get_write_stats(self):
         print("**** TEST {} ****".format(whoami()))
         stats = get_all_gen_stats_df(self.meta)
+        
+        
+        
         for name,df in stats.iteritems():
             path = r"c:\ExportDir\Mat\{}.mat".format(name)
             #print(name,v)
