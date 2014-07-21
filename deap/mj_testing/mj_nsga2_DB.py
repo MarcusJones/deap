@@ -77,7 +77,7 @@ def printhashes(pop, msg=""):
     print("{:>20} - {}".format(msg,sorted(hash_list)))
   
 def evaluate_pop(pop,session,Results,mapping,toolbox):
-    #printhashes(pop,"First pop")
+    logging.debug("Evaluating population size {}".format(len(pop)))
     
     eval_count = 0
     
@@ -96,10 +96,10 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         results_dict[r.hash] = r
 
     
-    print(results_dict)
+    print("In DB: ",results_dict)
     
     
-    print("Before sort",[i.hash for i in pop])
+    print("The total pop:",[i.hash for i in pop])
     
     while pop:
         this_ind = pop.pop()
@@ -110,9 +110,9 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         except KeyError:
             #raise
             eval_pop.append(this_ind)
-    
-    print("After sort ",[i.hash for i in pop])
-    print("Final pop",[i.hash for i in final_pop])
+    print("Divides into;")
+    print("eval_pop: ",[i.hash for i in eval_pop])
+    print("final_pop: ",[i.hash for i in final_pop])
     
     
     with loggerDebug():
@@ -124,31 +124,32 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
             # Check if it has been recently evaluated
             try: 
                 final_pop.append(newly_evald[ind.hash])
-                #logging.debug("{} was recently evaluated")
+                logging.debug("{} was recently evaluated")
                 continue
             except KeyError:
                 pass
             
             
-            # Check if in DB
-            if res and 0:
-                ind = ds.convert_DB_individual(res, mapping)
-                final_pop.append(ind)
-                logging.debug("Retrieved {}".format(ind))
-                
+#             # Check if in DB
+#             if res and 0:
+#                 ind = ds.convert_DB_individual(res, mapping)
+#                 final_pop.append(ind)
+#                 logging.debug("Retrieved {} from DB".format(ind))
+#                 
 
             # Do a fresh evaluation
-            else:
-                #sa.orm.exc.NoResultFound
+            #sa.orm.exc.NoResultFound
+            with loggerCritical():
                 ind = toolbox.evaluate(ind)
-                #logging.debug("Newly evaluated {}".format(ind))
-                eval_count += 1
-                res = ds.convert_individual_DB(Results,ind)
-                newly_evald[res.hash] = ind
-                session.merge(res)
+            logging.debug("Newly evaluated {}".format(ind))
+            eval_count += 1
+            res = ds.convert_individual_DB(Results,ind)
+            newly_evald[res.hash] = ind
+            session.merge(res)
                                 
             final_pop.append(ind)
         session.commit()
+    session.commit()        
             
             
 #             # First, check if in DB
@@ -182,6 +183,9 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
     # Assert that they are indeed evaluated
     for ind in final_pop:
         assert ind.fitness.valid, "{}".format(ind)
+
+
+
         
     return final_pop, eval_count
     
@@ -274,15 +278,12 @@ def main(path_db, seed=None):
     sa.orm.mapper(Results, res_ORM_table) 
 
     DB_Base.metadata.create_all(engine)
-    #session.commit()
+    session.commit()
     #util_sa.print_all_pretty_tables(engine, 20000)
-    
-    #raise
-    
+
     #===========================================================================
     # First generation    
     #===========================================================================
-    
     #---Create the population
     mapping.assign_individual(ds.Individual2)
     mapping.assign_fitness(creator.FitnessMin)
@@ -308,15 +309,23 @@ def main(path_db, seed=None):
     
     session.commit()
 
+    print("*{}************************".format(0))
+    util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
+    util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
+    
+
     record = stats.compile(pop)
     logbook.record(gen=0, evals=eval_count, **record)
     print(logbook.stream)
 
+    #--- Start evolution
     for gen in range(1, NGEN):
+        
 
         #=======================================================================
         # Select the population
         #=======================================================================
+        logging.debug("Selecting generation {}".format(gen))
         offspring = tools.selTournamentDCD(pop, len(pop))
         offspring = [mapping.clone_ind(ind) for ind in offspring]
         #logging.debug("Selected and cloned {} offspring".format(len(offspring)))
@@ -328,6 +337,7 @@ def main(path_db, seed=None):
         #=======================================================================
         # Mate and mutate
         #=======================================================================
+        logging.debug("Varying generation {}".format(gen))
         varied_offspring = list()
         pairs = zip(offspring[::2], offspring[1::2])
         for ind1, ind2 in pairs:
@@ -345,10 +355,9 @@ def main(path_db, seed=None):
         #=======================================================================
         # Evaluate the individuals
         #=======================================================================
+        logging.debug("Evaluating generation {}".format(gen))
         eval_offspring = list()
-
         eval_offspring,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
-        
         combined_pop = pop + eval_offspring
         
         # Select the next generation population
@@ -356,6 +365,10 @@ def main(path_db, seed=None):
         record = stats.compile(pop)
         logbook.record(gen=gen, evals=eval_count, **record)
         print(logbook.stream)
+        print("*{}************************".format(gen))
+        
+        util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
+        util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
         
         #=======================================================================
         # Add this generation
