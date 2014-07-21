@@ -23,7 +23,7 @@ import logging.config
 logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
 myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
-from UtilityLogger import loggerCritical
+from UtilityLogger import loggerCritical,loggerDebug
 
 import deap.mj_utilities.util_db_process as util_dbproc
 
@@ -36,6 +36,7 @@ import utility_SQL_alchemy as util_sa
 from deap.mj_utilities.db_base import DB_Base
 import deap.mj_utilities.db_base
 import utility_path as util_path
+import cProfile
 #===============================================================================
 # Import other
 #===============================================================================
@@ -79,39 +80,103 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
     #printhashes(pop,"First pop")
     
     eval_count = 0
+    
     final_pop = list()
-    with loggerCritical():
+    eval_pop = list()
+    
+    pop_ids = [ind.hash for ind in pop]
+    
+    # Get all matching from DB
+    qry = session.query(Results).filter(Results.hash.in_(( pop_ids )))
+    res = qry.all()
+    
+    # Assemble results into a dict
+    results_dict = dict()
+    for r in res:
+        results_dict[r.hash] = r
+
+    
+    print(results_dict)
+    
+    
+    print("Before sort",[i.hash for i in pop])
+    
+    while pop:
+        this_ind = pop.pop()
+        try: 
+            results_dict[ind.hash]
+            final_pop.append(this_ind)
+            #print("{} ALready in DB".format(ind))
+        except KeyError:
+            #raise
+            eval_pop.append(this_ind)
+    
+    print("After sort ",[i.hash for i in pop])
+    print("Final pop",[i.hash for i in final_pop])
+    
+    
+    with loggerDebug():
         # Only evaluate each individual ONCE
-        for ind in pop:
-            # First, check if in DB
-            try:
-                
-                #print(Results.hash)
-                #print(ind.hash)
-                query = session.query(Results).filter(Results.hash == ind.hash)
-                
-                #print(query)
-                res = query.one()
-                #res = 
+        newly_evald = dict()
+        while eval_pop:
+            ind = eval_pop.pop()
+
+            # Check if it has been recently evaluated
+            try: 
+                final_pop.append(newly_evald[ind.hash])
+                #logging.debug("{} was recently evaluated")
+                continue
+            except KeyError:
+                pass
+            
+            
+            # Check if in DB
+            if res and 0:
                 ind = ds.convert_DB_individual(res, mapping)
+                final_pop.append(ind)
                 logging.debug("Retrieved {}".format(ind))
                 
-            # Otherwise, do a fresh evaluation
-            except sa.orm.exc.NoResultFound:
+
+            # Do a fresh evaluation
+            else:
+                #sa.orm.exc.NoResultFound
                 ind = toolbox.evaluate(ind)
-                logging.debug("Evaluated {}".format(ind))
+                #logging.debug("Newly evaluated {}".format(ind))
                 eval_count += 1
                 res = ds.convert_individual_DB(Results,ind)
-                session.add(res)
-                session.commit()    
-                
+                newly_evald[res.hash] = ind
+                session.merge(res)
+                                
             final_pop.append(ind)
+        session.commit()
+            
+            
+#             # First, check if in DB
+#             if res[ind.hash]: 
+#             try:
+#                 #query = session.query(Results).filter(Results.hash == ind.hash)
+#                 #Results
+#                 #print(query)
+#                 #res = query.one()
+#                 #res =
+#                  
+#                 ind = ds.convert_DB_individual(res, mapping)
+#                 logging.debug("Retrieved {}".format(ind))
+#                 
+#             # Otherwise, do a fresh evaluation
+#             except sa.orm.exc.NoResultFound:
+#                 ind = toolbox.evaluate(ind)
+#                 logging.debug("Evaluated {}".format(ind))
+#                 eval_count += 1
+#                 res = ds.convert_individual_DB(Results,ind)
+#                 session.add(res)
+#                 session.commit()    
+                
     
 
             
     #logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
     
-    #session.commit()
     #logging.debug("Committed {} new individuals to DB".format(eval_count))
     
     # Assert that they are indeed evaluated
@@ -147,11 +212,13 @@ def main(path_db, seed=None):
     #---Parameters
     #===========================================================================
     NDIM = 30
+    NDIM = 3
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     #RES_STR = '0.002'
     RES_STR = '0.01'
-    NGEN = 250
-    POPSIZE = 4*10
+    RES_STR = '0.5'
+    NGEN = 10
+    POPSIZE = 4*1
     #MU = 100
     CXPB = 0.9
     PROB_CX = 0.1
@@ -274,22 +341,14 @@ def main(path_db, seed=None):
             del ind1.fitness.values, ind2.fitness.values
             
             varied_offspring.extend([ind1,ind2])
-        #logging.debug("Operated over {} pairs".format(len(pairs)))
-        #printhashes(varied_offspring,"Varied offspring g{}".format(gen))
-        
+
         #=======================================================================
         # Evaluate the individuals
         #=======================================================================
         eval_offspring = list()
-        #eval_count = 0
-        #retrieval_count = 0
 
         eval_offspring,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
         
-        # Add generations
-        #gen_rows = [ds.Generation(gen,ind.hash) for ind in pop]
-        #session.add_all(gen_rows)        
-
         combined_pop = pop + eval_offspring
         
         # Select the next generation population
@@ -307,19 +366,14 @@ def main(path_db, seed=None):
 
     util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
     util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
-    #engine,metadata
-    #this_frame = util_sa.get_frame_simple(engine,'Results')
     path_excel_out = r"C:\ExportDir\test.xlsx"
     util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
-    #print(this_frame)
     
     #Generations.join(Results)
     qry = session.query(Results,ds.Generation)
     qry = qry.join(ds.Generation)
     print(qry)
     print(qry.all())
-    #print("{} individuals seen".format(len(hash_list)))
-    #print("{} individuals unique".format(len(set(hash_list))))
     return pop, stats
 
 def showconvergence(pop):
@@ -340,30 +394,30 @@ def showconvergence(pop):
 
 
 if __name__ == "__main__":
-
-    import cProfile
-    path_profile  = r"C:\\ExportDir\testprofile.txt"
-    #cProfile.run('main()', filename=path_profile)
-    
-
-    with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
-        optimal_front = json.load(optimal_front_data)
-    # Use 500 of the 1000 points in the json file
-    optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
-    
     path_db = r':memory:'
     path_db = r"C:\ExportDir\DB\test.sql"
     util_path.check_path(path_db)
+    path_profile  = r"C:\\ExportDir\testprofile.txt"
     
+    flgp = 2
     
-    pop, stats = main(path_db)
-    pop.sort(key=lambda x: x.fitness.values)
+    if flgp == 1:
+        cProfile.run('main(path_db)', filename=path_profile)
     
-    print(stats)
-    print("Convergence: ", convergence(pop, optimal_front))
-    print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+    if flgp == 2:
+        
+        pop, stats = main(path_db)
+        pop.sort(key=lambda x: x.fitness.values)
+        
+        print(stats)
     
-    
-    print_res(pop,optimal_front)
+        with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
+            optimal_front = json.load(optimal_front_data)
+        # Use 500 of the 1000 points in the json file
+        optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
+        print("Convergence: ", convergence(pop, optimal_front))
+        print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+        
+        print_res(pop,optimal_front)
 
 
