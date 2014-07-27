@@ -6,6 +6,8 @@ from itertools import repeat
 from collections import Sequence
 from decimal import *
 import logging
+from copy import deepcopy
+
 ######################################
 # GA Mutations                       #
 ######################################
@@ -63,7 +65,6 @@ def mj_random_jump(individual, jumpsize, indpb):
     new_chromo = list()
 
     for gene in mutated_ind.chromosome:
-        
         index_max = len(gene.variable_tuple)-1
         index_min = 0
         

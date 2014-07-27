@@ -856,8 +856,11 @@ class Individual2(list):
     
     
     def clone(self):
-
-        cloned_Ind =  Individual2(self.chromosome, deepcopy(self.fitness))
+        new_chromo = list()
+        for gene in self.chromosome:
+            new_chromo.append(VariableObject(gene.name, gene.vtype, gene.variable_tuple, gene.index, gene.ordered))
+                              
+        cloned_Ind = Individual2(new_chromo, deepcopy(self.fitness))
         assert(cloned_Ind is not self)
         assert(cloned_Ind.fitness is not self.fitness)
         return cloned_Ind
