@@ -242,24 +242,20 @@ def main(path_db, seed=None):
     #===========================================================================
     NDIM = 30
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    #RES_STR = '0.002'
     RES_STR = '0.001'
-    #RES_STR = '0.5'
     NGEN = 250
-    POPSIZE = 4*10
-    #MU = 100
-    CXPB = 0.9
-    PROB_CX = 0.5
-    JUMPSIZE = 10
+    POPSIZE = 4*5
+    P_CX_THIS_PAIR = 0.5
+    P_CX_THESE_ALLELES = 0.1
+    JUMPSIZE = 100
     toolbox = base.Toolbox()
     
     #===========================================================================
     #---Algorithm
     #===========================================================================
     toolbox.register("evaluate", mj.mj_zdt1_decimal)
-    toolbox.register("mate", tools.mj_list_flip, indpb = PROB_CX)
+    toolbox.register("mate", tools.mj_list_flip, indpb = P_CX_THESE_ALLELES)
     toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM)
-    
     toolbox.register("select", tools.selNSGA2)
     
     #===========================================================================
@@ -350,10 +346,6 @@ def main(path_db, seed=None):
         this_gen_evo = dict()
         print("* GENERATION {:>5} ************************".format(gen))
         
-
-        toolbox.select(pop, len(pop))
-        
-        #printpoplist(current_pop,'Start population')
         this_gen_evo['Start population'] = get_gen_evo_dict_entry(pop)
         
         #=======================================================================
@@ -363,13 +355,6 @@ def main(path_db, seed=None):
         parents = tools.selTournamentDCD(pop, len(pop))
         cloned_parents = [ind.clone() for ind in parents]
 
-        #parents = [mapping.clone_ind(ind) for ind in selected_parents]
-        #parents = [ind.clone() for ind in selected_parents]
-
-        #parents = tuple(parents)
-        
-
-        #printpoplist(parents,'Selected parents')
         this_gen_evo['Selected parents'] = get_gen_evo_dict_entry(parents)
 
         
@@ -384,12 +369,11 @@ def main(path_db, seed=None):
         with loggerCritical():
             offspring = list()
             for ind1, ind2 in pairs:
-                if random.random() <= CXPB and ind1.hash != ind2.hash:
+                if random.random() <= P_CX_THIS_PAIR and ind1.hash != ind2.hash:
                     ind1,ind2 = toolbox.mate(ind1, ind2)
                     
                 offspring.extend([ind1,ind2])
 
-        #printpoplist(offspring,'Mated offspring')
         this_gen_evo['Mated offspring'] = get_gen_evo_dict_entry(offspring)
         
 
@@ -399,9 +383,6 @@ def main(path_db, seed=None):
         #=======================================================================
         #--- Mutate
         #=======================================================================
-
-        #printpoplist(parents,'Parents before')
-        
         with loggerCritical():
             mutated_offspring = list()
             for ind in offspring:
@@ -412,7 +393,6 @@ def main(path_db, seed=None):
         for ind in mutated_offspring:
             del ind.fitness.values
 
-        #printpoplist(mutated_offspring,'Mutated Offspring')
         this_gen_evo['Mutated offspring'] = get_gen_evo_dict_entry(mutated_offspring)
             
         #=======================================================================
@@ -432,8 +412,6 @@ def main(path_db, seed=None):
         #=======================================================================
         #--- Select the next generation population
         #=======================================================================
-        
-
         combined_pop = parents + eval_offspring
 
         assert_subset(combined_pop, parents + eval_offspring)
@@ -449,7 +427,7 @@ def main(path_db, seed=None):
         for ind in combined_pop:
             assert ind.fitness.valid, "{}".format(ind)
                 
-        new_pop = toolbox.select(combined_pop, POPSIZE)
+        pop = toolbox.select(combined_pop, POPSIZE)
         
         this_gen_evo['Next population'] = get_gen_evo_dict_entry(pop)
         
@@ -460,7 +438,7 @@ def main(path_db, seed=None):
         #=======================================================================
         # Add this generation
         #=======================================================================
-        population_hashes = [ind.hash for ind in new_pop]
+        population_hashes = [ind.hash for ind in pop]
 
         gen_rows = [ds.Generation(gen,this_hash) for this_hash in population_hashes]
         
@@ -475,7 +453,7 @@ def main(path_db, seed=None):
         session.add_all(gen_rows)
         session.commit()
         
-        pop = [ind.clone() for ind in new_pop]
+        #pop = [ind.clone() for ind in new_pop]
         
         
 
