@@ -350,11 +350,7 @@ def main(path_db, seed=None):
         this_gen_evo = dict()
         print("* GENERATION {:>5} ************************".format(gen))
         
-        if 0: assert_valid(pop)
-        
-        if 0: db_results = get_results_hashes(session,Results)
-        if 0: assert set([ind.hash for ind in pop]) <= set(db_results)
-        
+
         toolbox.select(pop, len(pop))
         
         #printpoplist(current_pop,'Start population')
@@ -366,17 +362,12 @@ def main(path_db, seed=None):
         logging.debug("Selecting generation {}".format(gen))
         parents = tools.selTournamentDCD(pop, len(pop))
         cloned_parents = [ind.clone() for ind in parents]
-        
-        if 0: assert_subset(parents, pop)
-        
+
         #parents = [mapping.clone_ind(ind) for ind in selected_parents]
         #parents = [ind.clone() for ind in selected_parents]
-        if 0: assert_subset(parents, pop)
 
         #parents = tuple(parents)
         
-        if 0: assert_valid(parents)
-        if 0: assert set([ind.hash for ind in parents]) <= set(db_results)
 
         #printpoplist(parents,'Selected parents')
         this_gen_evo['Selected parents'] = get_gen_evo_dict_entry(parents)
@@ -392,7 +383,6 @@ def main(path_db, seed=None):
         
         with loggerCritical():
             offspring = list()
-            if 0: assert_valid(cloned_parents)
             for ind1, ind2 in pairs:
                 if random.random() <= CXPB and ind1.hash != ind2.hash:
                     ind1,ind2 = toolbox.mate(ind1, ind2)
@@ -405,15 +395,10 @@ def main(path_db, seed=None):
 
         for ind in offspring:
             del ind.fitness.values
-            
-        if 0: assert_valid(parents)
 
         #=======================================================================
         #--- Mutate
         #=======================================================================
-        
-        if 0: db_results = get_results_hashes(session,Results)
-        if 0: assert set([ind.hash for ind in parents]) <= set(db_results)
 
         #printpoplist(parents,'Parents before')
         
@@ -423,14 +408,7 @@ def main(path_db, seed=None):
                 ind = toolbox.mutate(ind)
                 mutated_offspring.append(ind)
                 
-        #printpoplist(parents,'Parents after')
 
-        if 0: db_results = get_results_hashes(session,Results)
-        if 0: assert set([ind.hash for ind in parents]) <= set(db_results)
-
-        
-        if 0: assert_valid(parents)
-        
         for ind in mutated_offspring:
             del ind.fitness.values
 
@@ -444,7 +422,6 @@ def main(path_db, seed=None):
         #eval_offspring = list()
         cloned_offspring = [ind.clone() for ind in mutated_offspring]
         eval_offspring, eval_count = evaluate_pop(cloned_offspring,session,Results,mapping,toolbox)
-        if 0: printpoplist(eval_offspring,'Evaluated')
 
         for ind in parents:
             assert ind.fitness.valid, "{}".format(ind)
@@ -456,24 +433,9 @@ def main(path_db, seed=None):
         #--- Select the next generation population
         #=======================================================================
         
-        if 0: printpoplist(parents,'Parents')        
-        if 0: printpoplist(eval_offspring,'Evaluated')
-
-        if 0: assert_subset(parents, current_pop)
-        if 0: assert_subset(parents, pop)
-        
-        if 0: db_results = get_results_hashes(session,Results)
-        if 0: assert set([ind.hash for ind in parents]) <= set(db_results)
-
-        if 0: db_results = get_results_hashes(session,Results)
-        if 0: assert set([ind.hash for ind in eval_offspring]) <= set(db_results)
 
         combined_pop = parents + eval_offspring
 
-        if 0: db_results = get_results_hashes(session,Results)
-        if 0: assert set([ind.hash for ind in combined_pop]) <= set(db_results)
-
-        
         assert_subset(combined_pop, parents + eval_offspring)
         
         assert(len(combined_pop) == len(parents) + len(eval_offspring))
@@ -482,7 +444,6 @@ def main(path_db, seed=None):
         for ind in combined_pop:
             assert(ind in parents or ind in eval_offspring)
         
-        if 0: printpoplist(combined_pop,'Combined')
         this_gen_evo['Combined'] = get_gen_evo_dict_entry(combined_pop)
                 
         for ind in combined_pop:
@@ -490,7 +451,6 @@ def main(path_db, seed=None):
                 
         new_pop = toolbox.select(combined_pop, POPSIZE)
         
-        if 0: printpoplist(pop,'Selected parents for next generation')
         this_gen_evo['Next population'] = get_gen_evo_dict_entry(pop)
         
         record = stats.compile(pop)
