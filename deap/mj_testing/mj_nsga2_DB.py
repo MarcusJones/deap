@@ -64,21 +64,79 @@ from deap import creator
 from deap import tools
 
 
+def assert_valid(pop):
+    for ind in pop:
+        assert ind.fitness.valid, "{}".format(ind)
+
+def get_results_hashes(session,Results):
+   # metadata = sa.MetaData()
+    #metadata.reflect(engine)    
+    #return metadata
+    #results_table = meta.tables["Results"]
+    #meta = sa.MetaData()
+    #meta.reflect(engine)
+    #results_table = meta.tables["Results"]
+    #qry = sa.select(results_table.c.hash)
+    #res = engine.execute(qry).fetchall()
+    #print(res)
+    
+    
+    hashes = [row[0] for row in session.query(Results.hash).all()]
+    return(hashes)
+    
+    
+
+           
+def assert_subset(pop1, pop2):
+    pop1_hashes = set([ind.hash for ind in pop1])
+    pop2_hashes = set([ind.hash for ind in pop2])
+    assert(pop1_hashes <= pop2_hashes)
 
 
+
+def printpoplist(pop, msg=None):
+    hashes = [ind.hash for ind in pop]
+    hashes.sort()
+    
+    print("{:20} {}".format(msg,hashes))
+    pass
+
+def get_gen_evo_dict_entry(pop):
+    hashes = [ind.hash for ind in pop]
+    hashes.sort()
+    return(hashes)
 
 def printpop(msg, pop):
     print('*****************', msg)
     for ind in pop:
         print(ind)
         
+        
+def print_gen_dict(gd,gennum):
+    print("Generation {}".format(gennum))
+    
+    print("{:17} {}".format('Start population',gd['Start population']))
+    #print("{:17} {}".format('Population',gd['Population']))
+    print("{:17} {}".format('Parents',gd['Selected parents']))
+    print("{:17} {}".format('Mated offspring',gd['Mated offspring']))
+    print("{:17} {}".format('Mutated offspring',gd['Mutated offspring']))
+    print("{:17} {}".format('Combined',gd['Combined']))
+    print("{:17} {}".format('Next',gd['Next population']))
+
 def printhashes(pop, msg=""):
     hash_list = [ind.hash for ind in pop]
     print("{:>20} - {}".format(msg,sorted(hash_list)))
   
 def evaluate_pop(pop,session,Results,mapping,toolbox):
-    logging.debug("Evaluating population size {}".format(len(pop)))
-    
+    """evaluate_pop() performs a filter to ensure that each individual is only evaluated ONCE during the entire evolution
+    evaluate_pop calls toolbox.evaluate(individual)
+    - Entire population will be stored in final_pop list
+    - If individual is already in DB, it is moved immediately into final_pop (recreated by ORM)
+    - If not in DB, the individual is evaluated and stored in a dictionary newly_evald and added to final_pop
+    - DUPLICATE HANDLING: If the individual is already existing in newly_evald, it is not re-evaluated, but added directly to final_pop
+    - final_pop is returned by function
+    """
+    logging.debug("EVALUATE population size {}: {}".format(len(pop),sorted([i.hash for i in pop])))
     eval_count = 0
     
     final_pop = list()
@@ -93,26 +151,26 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
     # Assemble results into a dict
     results_dict = dict()
     for r in res:
-        results_dict[r.hash] = r
-
-    
-    print("In DB: ",results_dict)
-    
-    
-    print("The total pop:",[i.hash for i in pop])
+        this_ind = ds.convert_DB_individual(r,mapping)
+        results_dict[r.hash] = this_ind
     
     while pop:
         this_ind = pop.pop()
         try: 
-            results_dict[ind.hash]
+            this_ind = results_dict[this_ind.hash]
             final_pop.append(this_ind)
-            #print("{} ALready in DB".format(ind))
         except KeyError:
-            #raise
             eval_pop.append(this_ind)
-    print("Divides into;")
-    print("eval_pop: ",[i.hash for i in eval_pop])
-    print("final_pop: ",[i.hash for i in final_pop])
+    
+    for ind in final_pop:
+        if not ind.fitness.valid:
+            print(ind)
+            util_sa.printOnePrettyTable(session.bind, 'Results',maxRows = None)
+            raise Exception("Invalid fitness from DB")
+        #assert ind.fitness.valid, "{}".format(ind)
+                
+    logging.debug("EVALUATE {} individuals are already in database: {}".format(len(results_dict),sorted([i.hash for i in final_pop])))
+    logging.debug("EVALUATE {} individuals are to be evaluated: {}".format(len(eval_pop),sorted([i.hash for i in eval_pop])))
     
     
     with loggerDebug():
@@ -120,72 +178,35 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         newly_evald = dict()
         while eval_pop:
             ind = eval_pop.pop()
-
+            
             # Check if it has been recently evaluated
             try: 
-                final_pop.append(newly_evald[ind.hash])
-                logging.debug("{} was recently evaluated")
+                logging.debug("Recently evaluated: {} ".format(newly_evald[ind.hash]))
+                copy_ind = newly_evald[ind.hash]
+                assert(copy_ind.fitness.valid)
+                final_pop.append(copy_ind)
+                # Skip to next 
                 continue
             except KeyError:
-                pass
+                # This individual needs to be evaluated
+                #pass
             
-            
-#             # Check if in DB
-#             if res and 0:
-#                 ind = ds.convert_DB_individual(res, mapping)
-#                 final_pop.append(ind)
-#                 logging.debug("Retrieved {} from DB".format(ind))
-#                 
+                # Do a fresh evaluation
+                #with loggerCritical():
+                with loggerCritical():
+                    ind = toolbox.evaluate(ind)
+                    logging.debug("Newly evaluated {}".format(ind.hash))
+                assert(ind.fitness.valid)
+                eval_count += 1
+                res = ds.convert_individual_DB(Results,ind)
+                newly_evald[res.hash] = ind
+                session.merge(res)
+                final_pop.append(ind)
+    session.commit()
 
-            # Do a fresh evaluation
-            #sa.orm.exc.NoResultFound
-            with loggerCritical():
-                ind = toolbox.evaluate(ind)
-            logging.debug("Newly evaluated {}".format(ind))
-            eval_count += 1
-            res = ds.convert_individual_DB(Results,ind)
-            newly_evald[res.hash] = ind
-            session.merge(res)
-                                
-            final_pop.append(ind)
-        session.commit()
-    session.commit()        
-            
-            
-#             # First, check if in DB
-#             if res[ind.hash]: 
-#             try:
-#                 #query = session.query(Results).filter(Results.hash == ind.hash)
-#                 #Results
-#                 #print(query)
-#                 #res = query.one()
-#                 #res =
-#                  
-#                 ind = ds.convert_DB_individual(res, mapping)
-#                 logging.debug("Retrieved {}".format(ind))
-#                 
-#             # Otherwise, do a fresh evaluation
-#             except sa.orm.exc.NoResultFound:
-#                 ind = toolbox.evaluate(ind)
-#                 logging.debug("Evaluated {}".format(ind))
-#                 eval_count += 1
-#                 res = ds.convert_individual_DB(Results,ind)
-#                 session.add(res)
-#                 session.commit()    
-                
-    
-
-            
-    #logging.debug("Evaluated population size {}, of which are {} new ".format(len(pop), eval_count))
-    
-    #logging.debug("Committed {} new individuals to DB".format(eval_count))
-    
     # Assert that they are indeed evaluated
     for ind in final_pop:
         assert ind.fitness.valid, "{}".format(ind)
-
-
-
         
     return final_pop, eval_count
     
@@ -199,6 +220,10 @@ def main(path_db, seed=None):
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
     logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
+
+    # Results
+    path_excel_out = r"C:\ExportDir\test_before.xlsx"
+
 
     #===========================================================================
     # Statistics
@@ -216,29 +241,29 @@ def main(path_db, seed=None):
     #---Parameters
     #===========================================================================
     NDIM = 30
-    NDIM = 3
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
     #RES_STR = '0.002'
-    RES_STR = '0.01'
-    RES_STR = '0.5'
-    NGEN = 10
+    RES_STR = '0.001'
+    #RES_STR = '0.5'
+    NGEN = 250
     POPSIZE = 4*1
     #MU = 100
     CXPB = 0.9
-    PROB_CX = 0.1
+    PROB_CX = 0.5
     JUMPSIZE = 10
     toolbox = base.Toolbox()
     
     #===========================================================================
-    # Algorithm
+    #---Algorithm
     #===========================================================================
     toolbox.register("evaluate", mj.mj_zdt1_decimal)
     toolbox.register("mate", tools.mj_list_flip, indpb = PROB_CX)
     toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM)
+    
     toolbox.register("select", tools.selNSGA2)
     
     #===========================================================================
-    # Variables and design space
+    #---Variables and design space
     #===========================================================================
     # Create basis set
     var_names = ['var{}'.format(num) for num in range(NDIM)]    
@@ -290,103 +315,206 @@ def main(path_db, seed=None):
     pop = mapping.get_random_population(POPSIZE)
 
 
-    #---Evaluate first pop
-    path_excel_out = r"C:\ExportDir\test_before.xlsx"
 
-    #util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
     DB_Base.metadata.create_all(engine)
     session.commit()
+
+    #---Evaluate first pop
+    print("* GENERATION {:>5} ************************".format(0))
+
     #raise    
-    pop,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
-    
+    pop, eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
+
+    printpoplist(pop, 'First eval')
+
     # Add generations
     gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
     session.add_all(gen_rows)
     
     # Selection
-    pop = toolbox.select(pop, len(pop))
+    toolbox.select(pop, len(pop))
+    
+    printpoplist(pop,'First selection')
+
     logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
     
     session.commit()
 
-    print("*{}************************".format(0))
-    util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
-    util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
-    
 
     record = stats.compile(pop)
     logbook.record(gen=0, evals=eval_count, **record)
     print(logbook.stream)
 
-    #--- Start evolution
+    #---Start evolution
     for gen in range(1, NGEN):
+        this_gen_evo = dict()
+        print("* GENERATION {:>5} ************************".format(gen))
         
-
+        assert_valid(pop)
+        
+        get_results_hashes(session,Results)
+        
+        current_pop = [ind.clone() for ind in pop]
+        toolbox.select(current_pop, len(pop))
+        
+        printpoplist(current_pop,'Start population')
+        this_gen_evo['Start population'] = get_gen_evo_dict_entry(pop)
+        
         #=======================================================================
-        # Select the population
+        #--- Select the parents
         #=======================================================================
         logging.debug("Selecting generation {}".format(gen))
-        offspring = tools.selTournamentDCD(pop, len(pop))
-        offspring = [mapping.clone_ind(ind) for ind in offspring]
-        #logging.debug("Selected and cloned {} offspring".format(len(offspring)))
+        selected_parents = tools.selTournamentDCD(current_pop, len(current_pop))
+        assert_subset(selected_parents, current_pop)
         
-        #printpop('Offspring',pop)
-        
-        #printhashes(offspring,"Cloned offspring g{}".format(gen))
+        #parents = [mapping.clone_ind(ind) for ind in selected_parents]
+        parents = [ind.clone() for ind in selected_parents]
+        assert_subset(parents, current_pop)
 
+        #parents = tuple(parents)
+        
+        assert_valid(parents)
+
+
+        printpoplist(parents,'Selected parents')
+        this_gen_evo['Selected parents'] = get_gen_evo_dict_entry(parents)
+
+        
         #=======================================================================
-        # Mate and mutate
+        #--- Crossover
         #=======================================================================
         logging.debug("Varying generation {}".format(gen))
-        varied_offspring = list()
-        pairs = zip(offspring[::2], offspring[1::2])
-        for ind1, ind2 in pairs:
-            if random.random() <= CXPB:
-                toolbox.mate(ind1, ind2)
+        
+        cloned_parents = [ind.clone() for ind in parents]
+        
+        pairs = zip(cloned_parents[::2], cloned_parents[1::2])
+        
+        with loggerCritical():
+            offspring = list()
+            assert_valid(cloned_parents)
+            for ind1, ind2 in pairs:
+                if random.random() <= CXPB and ind1.hash != ind2.hash:
+                    ind1,ind2 = toolbox.mate(ind1, ind2)
+                    
+                offspring.extend([ind1,ind2])
+
+        printpoplist(offspring,'Mated offspring')
+        this_gen_evo['Mated offspring'] = get_gen_evo_dict_entry(offspring)
+        
+
+        for ind in offspring:
+            del ind.fitness.values
             
-            ind1 = toolbox.mutate(ind1)
-            ind2 = toolbox.mutate(ind2)
-            toolbox.mutate(ind1)
-            toolbox.mutate(ind2)            
-            del ind1.fitness.values, ind2.fitness.values
+        assert_valid(parents)
             
-            varied_offspring.extend([ind1,ind2])
 
         #=======================================================================
-        # Evaluate the individuals
+        #--- Mutate
+        #=======================================================================
+        with loggerCritical():
+            mutated_offspring = list()
+            for ind in offspring:
+                ind = toolbox.mutate(ind)
+                mutated_offspring.append(ind)
+        
+        assert_valid(parents)
+        
+        for ind in mutated_offspring:
+            del ind.fitness.values
+
+        printpoplist(mutated_offspring,'Mutated Offspring')
+        this_gen_evo['Mutated offspring'] = get_gen_evo_dict_entry(mutated_offspring)
+
+            
+        #=======================================================================
+        #--- Evaluate the individuals
         #=======================================================================
         logging.debug("Evaluating generation {}".format(gen))
-        eval_offspring = list()
-        eval_offspring,eval_count = evaluate_pop(pop,session,Results,mapping,toolbox)
-        combined_pop = pop + eval_offspring
+        #eval_offspring = list()
+        cloned_offspring = [ind.clone() for ind in mutated_offspring]
+        eval_offspring, eval_count = evaluate_pop(cloned_offspring,session,Results,mapping,toolbox)
+        printpoplist(eval_offspring,'Evaluated')
+
+        for ind in parents:
+            assert ind.fitness.valid, "{}".format(ind)
+        for ind in eval_offspring:
+            assert ind.fitness.valid, "{}".format(ind)
         
-        # Select the next generation population
-        pop = toolbox.select(combined_pop, POPSIZE)
+        printpoplist(parents,'Parents')        
+        printpoplist(eval_offspring,'Evaluated')
+
+        assert_subset(parents, current_pop)
+        assert_subset(parents, pop)
+        
+        combined_pop = parents + eval_offspring
+        
+        assert_subset(combined_pop, parents + eval_offspring)
+        
+        assert(len(combined_pop) == len(parents) + len(eval_offspring))
+        #assert(set(combined_pop) <= set(parents).union(set(eval_offspring)))
+        
+        for ind in combined_pop:
+            assert(ind in parents or ind in eval_offspring)
+        
+        printpoplist(combined_pop,'Combined')
+        this_gen_evo['Combined'] = get_gen_evo_dict_entry(combined_pop)
+                
+        for ind in combined_pop:
+            assert ind.fitness.valid, "{}".format(ind)
+        
+        #=======================================================================
+        #--- Select the next generation population
+        #=======================================================================
+        new_pop = toolbox.select(combined_pop, POPSIZE)
+        
+        #population_hashes = set([ind.hash for ind in current_pop])
+        #combined_pop_hashes = set([ind.hash for ind in combined_pop])
+        #assert(population_hashes <= combined_pop_hashes)
+
+        #logging.debug("Selected: {}".format([ind.hash for ind in pop]))
+        
+        printpoplist(pop,'Selected parents for next generation')
+        this_gen_evo['Next population'] = get_gen_evo_dict_entry(pop)
+        
         record = stats.compile(pop)
         logbook.record(gen=gen, evals=eval_count, **record)
         print(logbook.stream)
-        print("*{}************************".format(gen))
-        
-        util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
-        util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
-        
+
         #=======================================================================
         # Add this generation
         #=======================================================================
-        gen_rows = [ds.Generation(gen,ind.hash) for ind in pop]
-        session.add_all(gen_rows)
-        session.commit() 
+        population_hashes = [ind.hash for ind in new_pop]
 
-    util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
-    util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
+        gen_rows = [ds.Generation(gen,this_hash) for this_hash in population_hashes]
+        
+        combined_pop_hashes = [ind.hash for ind in combined_pop]
+        assert(set(population_hashes) <= set(combined_pop_hashes))
+
+        
+        util_sa.printOnePrettyTable(engine, 'Results', maxRows = None)
+        
+        print_gen_dict(this_gen_evo,gen)
+        
+        session.add_all(gen_rows)
+        session.commit()
+        
+        pop = [ind.clone() for ind in new_pop]
+        
+        
+
+    #---Finished generation
+        
+    #util_sa.printOnePrettyTable(engine, 'Results',maxRows = None)
+    #util_sa.printOnePrettyTable(engine, 'Generations',maxRows = None)
+    
     path_excel_out = r"C:\ExportDir\test.xlsx"
-    util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
+    #util_sa.print_all_excel(engine,path_excel_out, loggerCritical())
     
     #Generations.join(Results)
-    qry = session.query(Results,ds.Generation)
-    qry = qry.join(ds.Generation)
-    print(qry)
-    print(qry.all())
+    #qry = session.query(Results,ds.Generation)
+    #qry = qry.join(ds.Generation)
+    #print(qry)
+    #print(qry.all())
     return pop, stats
 
 def showconvergence(pop):

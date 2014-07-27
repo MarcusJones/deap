@@ -76,6 +76,10 @@ def generate_chromosome(basis_set):
 
 #--- Database
 def convert_DB_individual(res, mapping):
+    """Given a Results object from the database, recreate the Individual object
+    """
+    
+    
     chromosome = list()
     for var in mapping.design_space.basis_set:
         index_from_db = getattr(res, "var_c_{}".format(var.name))
@@ -290,7 +294,21 @@ class Mapping(object):
         logging.info("This mapping will produce fitness of class {}".format(Fitness.__name__))
     
     def clone_ind(self, ind):
-        return Individual2(ind.chromosome, self.fitness())
+
+    
+    
+    
+
+        
+        
+        
+        raise
+        #print(ind.fitness)
+        #print(ind.fitness())
+        cloned_Ind = Individual2(ind.chromosome, ind.fitness)
+        assert(cloned_Ind is not ind)
+
+        return cloned_Ind
     
     # Generating points in the space-------------
     def get_random_mapping(self, flg_verbose = False):
@@ -387,6 +405,10 @@ class VariableObject(object):
     
     def __str__(self):
         return self.this_val_str()
+
+    def __repr__(self):
+        return self.this_val_str()
+    
     
     @property
     def val_str(self):
@@ -660,6 +682,9 @@ class Variable(DB_Base):
 
     def __str__(self):
         return self.long_str()
+    
+    def __repr__(self):
+        return self.long_str()
 
     def next(self):
         """
@@ -828,6 +853,15 @@ class Individual2(list):
     @property    
     def hash(self):
         return self.__hash__()
+    
+    
+    def clone(self):
+
+        cloned_Ind =  Individual2(self.chromosome, deepcopy(self.fitness))
+        assert(cloned_Ind is not self)
+        assert(cloned_Ind.fitness is not self.fitness)
+        return cloned_Ind
+
     
     def re_init(self):
         list_items = list()

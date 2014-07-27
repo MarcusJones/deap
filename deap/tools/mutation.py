@@ -5,6 +5,7 @@ import random
 from itertools import repeat
 from collections import Sequence
 from decimal import *
+import logging
 ######################################
 # GA Mutations                       #
 ######################################
@@ -43,65 +44,50 @@ def mutGaussian(individual, mu, sigma, indpb):
     return individual,
 
 def mj_random_jump(individual, jumpsize, indpb):
+    
+    jump_digits = len(str(123))
+    
     for gene in individual.chromosome:
         assert gene.vtype == 'float'
         assert gene.ordered    
-    flg_verb = None
-    
-    #flg_verb = 1
 
-    if flg_verb:
-        original = individual
-        print("BEFORE: {}".format(original))     
-        
-        #print(individual)
-        #print(individual[:])
-    
-
-    
-    
+    original = individual.clone()
+    mutated_ind =     individual.clone()
+    original_hash = original.hash
     possible_jumps = range(-jumpsize,jumpsize+1,1)
     possible_jumps.remove(0)
-    #print("Possible jumps:",possible_jumps)
-    for gene in individual.chromosome:
-        if flg_verb:
-            pass
-            #print(gene, gene.index)
-        
-        max = len(gene.variable_tuple)-1
-        min = 0 
-        #print(gene, gene.index,max, min)
-        #print()
-        check = random.random()
-        #print("Random",check,"indpb;",indpb)
-        if check <= indpb:
-            
-            jump = random.choice(possible_jumps)
-            if flg_verb:
-                pass
-                #print("Jump {}".format(jump))            
-            newindex = gene.index + jump
-            if newindex < min:
-                newindex = min
-            if newindex > max:
-                newindex = max
-                
-            #print("Jump:",jump)
-            gene.index = newindex
-        if flg_verb:
-            pass       
-            #print(gene, gene.index)
     
-    individual.re_init()
-    if flg_verb:
-        print("AFTER : {}".format(original, individual))        
-        #print(individual)
-        #print(individual[:])
-    #print()
-    
-    return individual
+    mutate_signature = list()
+    #print("Before",individual.chromosome)   
+    #print("Before", individual.hash)
+    new_chromo = list()
 
-    #raise Exception
+    for gene in mutated_ind.chromosome:
+        
+        index_max = len(gene.variable_tuple)-1
+        index_min = 0
+        
+        check = random.random()
+        jump = ""
+        if check <= indpb:
+            jump = random.choice(possible_jumps)
+            newindex = gene.index + jump
+            if newindex < index_min:
+                newindex = index_min
+            if newindex > index_max:
+                newindex = index_max
+            gene.index = newindex
+        mutate_signature.append(jump)
+        new_chromo.append(gene)
+        
+    
+    mutated_ind.chromosome = new_chromo
+    mutated_ind.re_init()
+    mutate_signature = ['{number:{width}}'.format(width=jump_digits, number=jsize) for jsize in mutate_signature]
+    
+    logging.debug("{:15} [{}] {}".format(original_hash, "|".join(mutate_signature), mutated_ind.hash))
+    
+    return mutated_ind
 
 def mj_string_mutPolynomialBounded(individual, eta, low, up, indpb):
     """Polynomial mutation as implemented in original NSGA-II algorithm in

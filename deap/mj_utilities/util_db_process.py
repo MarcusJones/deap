@@ -561,12 +561,11 @@ class allTests(unittest.TestCase):
         #print(df)
         name = 'generations'
         path = r"c:\ExportDir\Mat\{}.mat".format(name)
-        write_frame_matlab(df,path,name)    
+        write_frame_matlab(df,path,name)
+        
     def test040_get_write_stats(self):
         print("**** TEST {} ****".format(whoami()))
         stats = get_all_gen_stats_df(self.meta)
-        
-        
         
         for name,df in stats.iteritems():
             path = r"c:\ExportDir\Mat\{}.mat".format(name)
