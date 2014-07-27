@@ -242,9 +242,9 @@ def main(path_db, seed=None):
     #===========================================================================
     NDIM = 30
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.001'
+    RES_STR = '0.0001'
     NGEN = 250
-    POPSIZE = 4*5
+    POPSIZE = 4*10
     P_CX_THIS_PAIR = 0.5
     P_CX_THESE_ALLELES = 0.1
     JUMPSIZE = 100
@@ -345,6 +345,9 @@ def main(path_db, seed=None):
     for gen in range(1, NGEN):
         this_gen_evo = dict()
         print("* GENERATION {:>5} ************************".format(gen))
+        
+        crowds = [ind.fitness.crowding_dist for ind in pop]
+        print("Mean crowding: {} Crowding distances {}".format(np.mean(crowds),crowds))
         
         this_gen_evo['Start population'] = get_gen_evo_dict_entry(pop)
         
