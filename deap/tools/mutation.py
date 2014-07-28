@@ -45,16 +45,20 @@ def mutGaussian(individual, mu, sigma, indpb):
     
     return individual,
 
-def mj_random_jump(individual, jumpsize, indpb):
+def mj_random_jump(individual, mapping, jumpsize, indpb):
     
     jump_digits = len(str(123))
     
-    for gene in individual.chromosome:
-        assert gene.vtype == 'float'
-        assert gene.ordered    
-
+    for allele in individual.chromosome:
+        assert allele.vtype == 'float'
+        assert allele.ordered    
+        
     original = individual.clone()
     mutated_ind =     individual.clone()
+    
+    #print(mutated_ind)
+    #raise
+    
     original_hash = original.hash
     possible_jumps = range(-jumpsize,jumpsize+1,1)
     possible_jumps.remove(0)
@@ -64,7 +68,19 @@ def mj_random_jump(individual, jumpsize, indpb):
     #print("Before", individual.hash)
     new_chromo = list()
 
-    for gene in mutated_ind.chromosome:
+    for allele in mutated_ind.chromosome:
+        
+        #print()
+        #print(allele.locus)
+        #print(allele)
+        
+        gene = mapping.design_space.basis_set[allele.locus]
+        assert(allele.name == gene.name)
+        gene.index = allele.index
+        
+        #print(gene)
+        #raise
+        
         index_max = len(gene.variable_tuple)-1
         index_min = 0
         
@@ -79,8 +95,8 @@ def mj_random_jump(individual, jumpsize, indpb):
                 newindex = index_max
             gene.index = newindex
         mutate_signature.append(jump)
-        new_chromo.append(gene)
-        
+        new_chromo.append(gene.return_allele())
+        #raise
     
     mutated_ind.chromosome = new_chromo
     mutated_ind.re_init()

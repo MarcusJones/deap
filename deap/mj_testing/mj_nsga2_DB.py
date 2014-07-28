@@ -242,7 +242,7 @@ def main(path_db, seed=None):
     #===========================================================================
     NDIM = 30
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.0001'
+    RES_STR = '0.01'
     NGEN = 250
     POPSIZE = 4*10
     P_CX_THIS_PAIR = 0.5
@@ -263,8 +263,9 @@ def main(path_db, seed=None):
     #===========================================================================
     # Create basis set
     var_names = ['var{}'.format(num) for num in range(NDIM)]    
-    with loggerCritical():
-        basis_set = [ds.Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for name in var_names]
+    #with loggerCritical():
+    with loggerDebug():
+        basis_set = [ds.Variable.from_range(name, i, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for i,name in enumerate(var_names)]
     
     # Add to DB
     for var in basis_set:
@@ -309,7 +310,10 @@ def main(path_db, seed=None):
     mapping.assign_individual(ds.Individual2)
     mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
-
+    
+    #print(pop[0].chromosome[0])
+    
+    #raise
 
 
     DB_Base.metadata.create_all(engine)
@@ -386,10 +390,11 @@ def main(path_db, seed=None):
         #=======================================================================
         #--- Mutate
         #=======================================================================
-        with loggerCritical():
+        #with loggerCritical():
+        with loggerDebug():
             mutated_offspring = list()
             for ind in offspring:
-                ind = toolbox.mutate(ind)
+                ind = toolbox.mutate(ind,mapping)
                 mutated_offspring.append(ind)
                 
 

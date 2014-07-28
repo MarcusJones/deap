@@ -560,9 +560,10 @@ class Variable(DB_Base):
         return self
 
     def get_indexed_obj(self, index):
-        raise
+        #raise
         self.index = index
         return Allele(self.name, 
+                      self.locus,                      
                               self.vtype, 
                               self.val_str, 
                               self.index, 
@@ -574,7 +575,8 @@ class Variable(DB_Base):
                               self.vtype, 
                               self.val_str, 
                               self.index, 
-                              self.ordered)        
+                              self.ordered)
+         
     def get_random_obj(self):
         """
         Return a random value from all possible values
