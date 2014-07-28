@@ -380,12 +380,12 @@ class Mapping(object):
         pass
 
 
-class VariableObject(object):
+class Allele(object):
     """
-    A general variable object, inherited by specific types
 
     Init Attributes
     name - A label for the variable. Required.
+    locus - 
     variable_tuple - The k-Tuple of possible values
     ordered= True - Flag
 
@@ -394,10 +394,11 @@ class VariableObject(object):
     value = The current value of the variable, defined by the index
 
     """
-    def __init__(self, name, vtype, variable_tuple, index, ordered):
+    def __init__(self, name, locus, vtype, value, index, ordered):
         self.name = name
+        self.locus = locus
         self.vtype = vtype
-        self.variable_tuple = variable_tuple
+        self.value = value
         self.index = index
         self.ordered = ordered
 
@@ -409,10 +410,9 @@ class VariableObject(object):
     def __repr__(self):
         return self.this_val_str()
     
-    
     @property
     def val_str(self):
-        return str(self.variable_tuple[self.index])
+        return str(self.value)
     
     def this_val_str(self):
         
@@ -441,9 +441,10 @@ class Variable(DB_Base):
     name = Column(String)
     vtype = Column(String)
 
-    def __init__(self,name, vtype, variable_tuple, ordered):
+    def __init__(self, name, locus, vtype, variable_tuple, ordered):
         self.vtype = vtype
         self.name = name
+        self.locus = locus
         
         if isinstance(variable_tuple,tuple):
             pass
@@ -507,7 +508,7 @@ class Variable(DB_Base):
         return str(self.variable_tuple[self.index])
     
     @classmethod
-    def from_range(cls, name, vtype, lower, resolution, upper):
+    def from_range(cls, name, locus, vtype, lower, resolution, upper):
         """
         Init overload - easy creation from a lower to upper decimal with a step size
         Arguments are string for proper decimal handling!
@@ -534,7 +535,7 @@ class Variable(DB_Base):
         length = (upper - lower) / resolution + 1
         vTuple = [lower + i * resolution for i in range(0,length)]
 
-        return cls(name, vtype, vTuple,True)
+        return cls(name, locus, vtype, vTuple,True)
 
     @classmethod
     def ordered(cls,name, vtype, vTuple):
@@ -559,13 +560,21 @@ class Variable(DB_Base):
         return self
 
     def get_indexed_obj(self, index):
+        raise
         self.index = index
-        return VariableObject(self.name, 
+        return Allele(self.name, 
                               self.vtype, 
-                              self.variable_tuple, 
+                              self.val_str, 
                               self.index, 
                               self.ordered)
-        
+
+    def return_allele(self):
+        return Allele(self.name, 
+                      self.locus,
+                              self.vtype, 
+                              self.val_str, 
+                              self.index, 
+                              self.ordered)        
     def get_random_obj(self):
         """
         Return a random value from all possible values
@@ -574,9 +583,10 @@ class Variable(DB_Base):
         self.index = random.choice(range(len(self)))
         
         
-        return VariableObject(self.name, 
+        return Allele(self.name, 
+                      self.locus,
                               self.vtype, 
-                              self.variable_tuple, 
+                              self.val_str, 
                               self.index, 
                               self.ordered)
 
@@ -662,7 +672,7 @@ class Variable(DB_Base):
         if self.index == None:
             generatedValueStr = "<UNINITIALIZED>"
         else:
-            generatedValueStr = str(self.value)
+            generatedValueStr = self.val_str
 
         if self.ordered:
             ordStr = "Ordered"
@@ -825,14 +835,14 @@ class DesignSpace(object):
 
 
 class Individual2(list):
-    """An individual is composed of a list of genes (chromosome)
+    """An individual is composed of a list of alleles (chromosome)
     Each gene is an instance of the Variable class
     The Individual class inherits list (slicing, assignment, mutability, etc.)
     """
     def __init__(self, chromosome, fitness):
         
         for val in chromosome:
-            assert type(val) == VariableObject
+            assert type(val) == Allele
 
         list_items = list()
         for gene in chromosome:
@@ -857,8 +867,8 @@ class Individual2(list):
     
     def clone(self):
         new_chromo = list()
-        for gene in self.chromosome:
-            new_chromo.append(VariableObject(gene.name, gene.vtype, gene.variable_tuple, gene.index, gene.ordered))
+        for allele in self.chromosome:
+            new_chromo.append(Allele(allele.name, allele.locus, allele.vtype, allele.value, allele.index, allele.ordered))
                               
         cloned_Ind = Individual2(new_chromo, deepcopy(self.fitness))
         assert(cloned_Ind is not self)
