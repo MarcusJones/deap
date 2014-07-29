@@ -299,7 +299,7 @@ def main(path_db, path_evolog, seed=None):
     for name,weight in zip(creator.FitnessMin.names,creator.FitnessMin.weights):
         objs.append(ds.Objective(name,weight))
     this_obj_space = ds.ObjectiveSpace(objs)
-    session.add_all(objs)    
+    session.add_all(objs)
         
     #=======================================================================
     #---Mapping

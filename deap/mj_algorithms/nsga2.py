@@ -1,0 +1,259 @@
+#    This file is part of DEAP.
+#
+#    DEAP is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Lesser General Public License as
+#    published by the Free Software Foundation, either version 3 of
+#    the License, or (at your option) any later version.
+#
+#    DEAP is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#    GNU Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with DEAP. If not, see <http://www.gnu.org/licenses/>.
+#===============================================================================
+# Import settings and logger
+#===============================================================================
+from __future__ import division
+from __future__ import print_function
+from deap.mj_config.deapconfig import *
+
+import logging.config
+logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
+myLogger = logging.getLogger()
+myLogger.setLevel("DEBUG")
+from UtilityLogger import loggerCritical,loggerDebug
+
+#===============================================================================
+# Utilities
+#===============================================================================
+import deap.mj_utilities.util_db_process as util_dbproc
+from deap.mj_utilities.util_graphics import print_res
+import utility_SQL_alchemy as util_sa
+from deap.mj_utilities.db_base import DB_Base
+import deap.mj_utilities.util_general as util
+
+
+import utility_path as util_path
+import cProfile
+#===============================================================================
+# Import other
+#===============================================================================
+import numpy as np
+import json
+import sqlalchemy as sa
+from decimal import Decimal
+
+#===============================================================================
+# Import design space
+#===============================================================================
+import deap.design_space as ds
+
+#===============================================================================
+# Import deap
+#===============================================================================
+import random
+from deap.benchmarks.tools import diversity, convergence
+from deap import base
+from deap import creator
+from deap import tools
+
+def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
+    with open(settings['path_evolog'], 'w+') as evolog:
+        print("Start log", file=evolog)
+
+    engine = session.bind
+
+    #===========================================================================
+    # First generation    
+    #===========================================================================
+    #---Create the population
+    mapping.assign_individual(ds.Individual2)
+    pop = mapping.get_random_population(parameters['Population size'])
+
+    DB_Base.metadata.create_all(engine)
+    session.commit()
+
+    #---Evaluate first pop
+    print("* GENERATION {:>5} ************************".format(0))
+    
+    pop, eval_count = util.evaluate_pop(pop,session,Results,mapping,algorithm['evaluate'])
+
+    gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
+    session.add_all(gen_rows)
+    
+    # Selection
+    logging.debug("Selecting next generation {}".format(algorithm['select'].__name__))
+    
+    algorithm['select'](pop, len(pop))
+    
+    logging.debug("Crowding distance applied to initial population of {}".format(len(pop)))
+    
+    session.commit()
+
+
+    #---Start evolution
+    for gen in range(1, parameters['Generations']):
+        this_gen_evo = dict()
+        print("* GENERATION {:>5} ************************".format(gen))
+        
+        crowds = [ind.fitness.crowding_dist for ind in pop]
+        print("Mean crowding: {} Crowding distances {}".format(np.mean(crowds),crowds))
+        
+        this_gen_evo['Start population'] = util.get_gen_evo_dict_entry(pop)
+        
+        #=======================================================================
+        #--- Select the parents
+        #=======================================================================
+        
+        logging.debug("Selecting generation {}".format(gen))
+        parents = operators['select'](pop, len(pop))
+        cloned_parents = [ind.clone() for ind in parents]
+
+        this_gen_evo['Selected parents'] = util.get_gen_evo_dict_entry(parents)
+        
+        #=======================================================================
+        #--- Crossover
+        #=======================================================================
+        logging.debug("Varying generation {}".format(gen))
+        
+        
+        pairs = zip(cloned_parents[::2], cloned_parents[1::2])
+        
+        with loggerCritical():
+            offspring = list()
+            for ind1, ind2 in pairs:
+                if random.random() <= parameters['Probability crossover'] and ind1.hash != ind2.hash:
+                    ind1,ind2 = operators['mate'](ind1, ind2, 
+                                                  indpb = parameters['Probability flip allele'],
+                                                  path_evolog = settings['path_evolog'])
+                    
+                offspring.extend([ind1,ind2])
+
+        this_gen_evo['Mated offspring'] = util.get_gen_evo_dict_entry(offspring)
+        
+        for ind in offspring:
+            del ind.fitness.values
+
+        #=======================================================================
+        #--- Mutate
+        #=======================================================================
+        #with loggerCritical():
+        with loggerDebug():
+            mutated_offspring = list()
+            for ind in offspring:
+                ind = operators['mutate'](ind,
+                                          mapping,
+                                          indpb=parameters['Probability mutation'],
+                                          jumpsize=parameters['Jump size'],
+                                          path_evolog = settings['path_evolog'])
+                mutated_offspring.append(ind)
+                
+
+        for ind in mutated_offspring:
+            del ind.fitness.values
+
+        this_gen_evo['Mutated offspring'] = util.get_gen_evo_dict_entry(mutated_offspring)
+            
+        #=======================================================================
+        #--- Evaluate the individuals
+        #=======================================================================
+        logging.debug("Evaluating generation {}".format(gen))
+        #eval_offspring = list()
+        cloned_offspring = [ind.clone() for ind in mutated_offspring]
+        #eval_offspring, eval_count = evaluate_pop(cloned_offspring,session,Results,mapping,toolbox)
+        eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,algorithm['evaluate'])
+
+        for ind in parents:
+            assert ind.fitness.valid, "{}".format(ind)
+        for ind in eval_offspring:
+            assert ind.fitness.valid, "{}".format(ind)
+
+        #=======================================================================
+        #--- Select the next generation population
+        #=======================================================================
+        combined_pop = parents + eval_offspring
+
+        util.assert_subset(combined_pop, parents + eval_offspring)
+        
+        assert(len(combined_pop) == len(parents) + len(eval_offspring))
+        #assert(set(combined_pop) <= set(parents).union(set(eval_offspring)))
+        
+        for ind in combined_pop:
+            assert(ind in parents or ind in eval_offspring)
+        
+        this_gen_evo['Combined'] = util.get_gen_evo_dict_entry(combined_pop)
+                
+        for ind in combined_pop:
+            assert ind.fitness.valid, "{}".format(ind)
+                
+        pop = algorithm['select'](combined_pop, parameters['Population size'])
+        
+        this_gen_evo['Next population'] = util.get_gen_evo_dict_entry(pop)
+
+        #=======================================================================
+        # Add this generation
+        #=======================================================================
+        population_hashes = [ind.hash for ind in pop]
+
+        gen_rows = [ds.Generation(gen,this_hash) for this_hash in population_hashes]
+        
+        combined_pop_hashes = [ind.hash for ind in combined_pop]
+        assert(set(population_hashes) <= set(combined_pop_hashes))
+
+        
+        #util_sa.printOnePrettyTable(engine, 'Results', maxRows = None)
+        
+        util.print_gen_dict(this_gen_evo,gen,settings['path_evolog'])
+        
+        session.add_all(gen_rows)
+        session.commit()
+
+    #---Finished generation
+
+def showconvergence(pop):
+    pop.sort(key=lambda x: x.fitness.values)
+    with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
+        optimal_front = json.load(optimal_front_data)
+        
+    # Use 500 of the 1000 points in the json file
+    optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
+
+
+    pop.sort(key=lambda x: x.fitness.values)
+    
+    print("Convergence: ", convergence(pop, optimal_front))
+    print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+    
+
+
+
+if __name__ == "__main__":
+    path_db = r':memory:'
+    path_db = r"C:\ExportDir\DB\test.sql"
+    util_path.check_path(path_db)
+    path_profile  = r"C:\\ExportDir\testprofile.txt"
+    
+    flgp = 2
+    
+    if flgp == 1:
+        cProfile.run('main(path_db)', filename=path_profile)
+    
+    if flgp == 2:
+        path_evolog = r'c:\ExportDir\\test_log.txt'
+        pop, stats = main(path_db,path_evolog)
+        pop.sort(key=lambda x: x.fitness.values)
+        
+        print(stats)
+    
+        with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
+            optimal_front = json.load(optimal_front_data)
+        # Use 500 of the 1000 points in the json file
+        optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
+        print("Convergence: ", convergence(pop, optimal_front))
+        print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+        
+        print_res(pop,optimal_front)
+
+

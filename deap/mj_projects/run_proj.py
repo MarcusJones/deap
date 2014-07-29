@@ -116,32 +116,81 @@ def build_structure(settings):
 def get_operators(book):
     with loggerCritical():
         all_data = book.get_table("Operators")
-    operators = list()
-    for operator_name in all_data[1:]:
-        name = operator_name[0]
-        operators_module = importlib.import_module('deap.mj_operators')
-        operator_function = getattr(operators_module,name)
-        logging.debug("Loaded {} operator".format(operator_function.__name__))
-        operators.append(operators_module)
-    return operators
+        
+    operators_def = dict()
+    #print(all_data)
+    for row in all_data:
+        operators_def[row[0]] = {'module' : row[1],'function' : row[2]}
+
+    for k,v in operators_def.iteritems():
+        #this_mod = importlib.import_module('deap.' + operators_def[k]['module'])
+        operators_def[k] = getattr(importlib.import_module('deap.' + operators_def[k]['module']), operators_def[k]['function'])
+
+    logging.debug("Operators loaded:")
+    for item,function in operators_def.iteritems():
+        logging.debug("{:>20} - {}".format(item,function.__name__))
+                
+    return operators_def
+#     raise        
+#     operators = list()
+#     for operator_name in all_data[1:]:
+#         name = operator_name[0]
+#         operators_module = importlib.import_module('deap.mj_operators')
+#         operator_function = getattr(operators_module,name)
+#         logging.debug("Loaded {} operator".format(operator_function.__name__))
+#         operators.append(operators_module)
+#     return operators
 
 def get_algorithm(book):
     with loggerCritical():
         all_data = book.get_table("Algorithm")
-    print(all_data)    
+    
+    algorithm_def = dict()
+    for row in all_data:
+        algorithm_def[row[0]] = {'module' : row[1],'function' : row[2]}
+        
+    for k,v in algorithm_def.iteritems():
+        #this_mod = importlib.import_module('deap.' + algorithm_def[k]['module'])
+        algorithm_def[k] = getattr(importlib.import_module('deap.' + algorithm_def[k]['module']), algorithm_def[k]['function'])
+        
+    logging.debug("Algorithm loaded:")
+    for item,function in algorithm_def.iteritems():
+        logging.debug("{:>20} - {}".format(item,function.__name__))
+        
+    return algorithm_def
+
+
+def get_parameters(book):
+    with loggerCritical():
+        all_data = book.get_table("Parameters")
+    
+    parameters_def = dict()
+    for row in all_data[1:]:
+        parameters_def[row[0]] = {'value' : row[1],'type' : row[2]}
+    
+    for k,v in parameters_def.iteritems():
+        if v['type'] == 'int':
+            parameters_def[k] = int(v['value'])
+        elif v['type'] == 'float':
+            parameters_def[k] = v['value']       
+        else:
+            
+            raise Exception("Unknown {}".format(v['type']))
+
+    
+    #print(parameters_def)
+    #raise
+    #settings = book.get_row_as_dict(all_data,1)
+    
+    return parameters_def
+
+
+
 #===============================================================================
 #--- Mapping 
 #===============================================================================
-def get_design_space(definitionBookPath):
-        basisVariables = get_variables(definitionBookPath)
-        objectives = get_objectives(definitionBookPath)
-        thisDspace = DesignSpace(basisVariables,objectives)
-        
-        return thisDspace
-
 def get_list_variables(book):
-    with loggerCritical():
-        all_data = book.get_table("List Variables")
+    all_data = book.get_table("List Variables")
     if len(all_data) == 1:
         return None
     variable_rows = [row for row in all_data[2:] if row[0]]
@@ -155,21 +204,11 @@ def get_list_variables(book):
         thisVar = ds.Variable.ordered(variable_def['Name'],variable_def['Type'],list_vals)
         variables.append(thisVar)
 
-#        else: raise
-#    elif variable_def['Creation'] == "List": # List
-#         values = tuple([var for var in variable_def[3:] if var])
-#         name = variable_def['Name']
-#         vtype = variable_def['Type']
-#         thisVar = ds.Variable.ordered(name, locus, vtype,values)
-#         variables.append(thisVar)
-#     else: raise
-
     return variables
 
 
 def get_range_variables(book):
-    with loggerCritical():
-        all_data = book.get_table("Range Variables")
+    all_data = book.get_table("Range Variables")
     variable_rows = [row for row in all_data[2:] if row[0]]
     row_nums = (xrange(1, 2+len(variable_rows)))
 
@@ -210,10 +249,8 @@ def get_objectives(fitness):
     objs = list()
     for name,weight in zip(fitness.names,fitness.weights):
         objs.append(ds.Objective(name,weight))
-    this_obj_space = ds.ObjectiveSpace(objs)
-    #session.add_all(objs)    
-        
-    return this_obj_space
+
+    return objs
 
 #===============================================================================
 #--- Get whole project
@@ -239,7 +276,8 @@ def get_project_def(path_book):
     engine = sa.create_engine("sqlite:///{}".format(settings['path_sql_db']), echo=0, listeners=[util_sa.ForeignKeysListener()])
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
-    
+    logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
+
     with open(settings['path_evolog'], 'w+') as evolog:
         print("Start log", file=evolog)
     
@@ -247,21 +285,33 @@ def get_project_def(path_book):
     #===========================================================================
     #---DesignSpace, ObjectiveSpace
     #===========================================================================
-    variables = list()
-    list_vars = get_list_variables(book)
-    if list_vars:
-        variables.extend(list_vars)
-    range_vars = variables.extend(get_range_variables(book))
-    if range_vars:
-        variables.extend(range_vars)
+    with loggerCritical():
+        variables = list()
+        list_vars = get_list_variables(book)
+        if list_vars:
+            variables.extend(list_vars)
+        range_vars = variables.extend(get_range_variables(book))
+        if range_vars:
+            variables.extend(range_vars)
     
     design_space = ds.DesignSpace(variables)
+    
+    # Add vectors to DB
+    for var in design_space.basis_set:
+        session.add_all(var.variable_tuple)
+        
+    # Add the variable names to the DB
+    session.add_all(design_space.basis_set)
+
     
     # Get ObjectiveSpace
     Fitness = get_fitness(book)
     
-    objective_space = get_objectives(Fitness)
-    
+    objs = get_objectives(Fitness)
+    session.add_all(objs) 
+    objective_space = ds.ObjectiveSpace(objs)
+    session.add_all(objs)    
+        
     #===========================================================================
     #---Mapping
     #===========================================================================
@@ -278,12 +328,28 @@ def get_project_def(path_book):
     #===========================================================================
     #---Operators
     #===========================================================================
-    get_operators(book)
+    operators = get_operators(book)
 
     #===========================================================================
-    #--Algorithm
+    #---Algorithm
     #===========================================================================
-    get_algorithm(book)
+    algorithm = get_algorithm(book)
+    
+    parameters = get_parameters(book)
+    for k,v, in parameters.iteritems():
+       print("{:>30} : {:<30} {}".format(k,v, type(v)))
+        
+    #===========================================================================
+    #---Execute    
+    #===========================================================================
+    algorithm['name'](settings=settings, 
+                      algorithm=algorithm,
+                      parameters=parameters,
+                      operators=operators, 
+                      mapping=mapping, 
+                      session=session,
+                      Results=Results)
+    
     
 #===============================================================================
 # Unit testing

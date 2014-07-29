@@ -8,14 +8,13 @@ from operator import attrgetter, itemgetter
 from collections import defaultdict
 from operator import truediv
 import logging
-######################################
-# Non-Dominated Sorting   (NSGA-II)  #
-######################################
 
+######################################
+#---Non-Dominated Sorting   (NSGA-II)  #
+######################################
 
 __all__ = ['selNSGA2',  'selSPEA2', 'sortNondominated', 'sortLogNondominated',
            'selTournamentDCD']
-
 
 def selNSGA2(individuals, k):
     """Apply NSGA-II selection operator on the *individuals*. Usually, the
@@ -36,6 +35,8 @@ def selNSGA2(individuals, k):
     """
     #print([ind.F])
     pareto_fronts = sortNondominated(individuals, k)
+    
+    logging.debug("Sorted {} individuals into {} fronts, returning {} best".format(len(individuals),len(pareto_fronts),k))
     for front in pareto_fronts:
         assignCrowdingDist(front)
    
@@ -46,8 +47,6 @@ def selNSGA2(individuals, k):
         chosen.extend(sorted_front[:k])
        
     return chosen
-
-
 
 
 def sortNondominated(individuals, k, first_front_only=False):
@@ -194,7 +193,7 @@ def selTournamentDCD(individuals, k):
 
 
 #######################################
-# Generalized Reduced runtime ND sort #
+#---Generalized Reduced runtime ND sort #
 #######################################
 
 def identity(obj):
@@ -440,7 +439,7 @@ def sweepB(best, worst, front):
             front[h] = max(front[h], front[fstair]+1)
 
 ######################################
-# Strength Pareto         (SPEA-II)  #
+#---Strength Pareto         (SPEA-II)  #
 ######################################
 
 def selSPEA2(individuals, k):
