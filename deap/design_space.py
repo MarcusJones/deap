@@ -74,12 +74,10 @@ def generate_chromosome(basis_set):
 
     return zip(variable_names,variable_indices,variableValues)
 
-#--- Database
+#--- Database interaction
 def convert_DB_individual(res, mapping):
     """Given a Results object from the database, recreate the Individual object
     """
-    
-    
     chromosome = list()
     for var in mapping.design_space.basis_set:
         index_from_db = getattr(res, "var_c_{}".format(var.name))
@@ -182,207 +180,49 @@ def generate_variable_table_class(name):
     
     return NewTable
 
+#--- Objective space
+class Objective(DB_Base):
+    __tablename__ = 'Objectives'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    goal = Column(String)
+    
+    def __init__(self, name, goal):
+        self.name = name
+        self.goal = goal
 
+class ObjectiveSpace(object):
+    def __init__(self, objectives):
+        objective_names = [obj.name for obj in objectives]
+        objective_goals = [obj.goal for obj in objectives]
+        
+        assert not isinstance(objective_names, basestring)
+        assert not isinstance(objective_goals, basestring)
+        assert(type(objective_names) == list or type(objective_names) == tuple)
+        assert(type(objective_goals) == list or type(objective_names) == tuple)
+        assert(len(objective_names) == len(objective_goals))
+        for obj in objective_names:
+            assert obj not in  ["hash", "start", "finish"]
 
-#---
+        #for goal in objective_goals:
+        #    assert(goal == "Min" or goal == "Max")
 
-def evaluate_population(population, engine):
-    raise
-    """Given a list of individuals, evaluate only those which are
-    1. Unique
-    2. Not already existing in database
-    """
-    logging.info("Evaluating {} individuals, typical: {}".format(len(population),population[0]))
+        self.objective_names = objective_names
+        self.objective_goals = objective_goals
+        logging.debug("Created {}".format(self))
 
-    unique_pop = list(set(population))
-    logging.info("Of these {} individuals, {} are unique".format(len(population),len(unique_pop)))
-
-    # Get metadata
-    metadata = sa.MetaData()
-    metadata.reflect(engine)
-
-    # Get all tables
-    #util_sa.print_all_pretty_tables(engine)
-    results_table =  metadata.tables['results']
-    objectives_table = metadata.tables['objectives']
-
-    # Get objective names
-    #objectives_table.fetchall()
-    objective_names = util_sa.get_rows(engine,objectives_table)
-    objective_names = [row[1] for row in objective_names]
-    #logging.info("Objectives: {}".format(objective_names))
-
-    objective_columns = [results_table.c[obj_name] for obj_name in objective_names]
-
-    # Here the population is filtered into 2:
-    # 1. The already-evaluated list
-    evaluated_pop = list()
-    # 2. The pending list
-    pending_pop = list()
-
-    # DO for all in population
-    while unique_pop:
-        indiv = unique_pop.pop()
-
-        # First, go into the results table and select this individual
-        qry = results_table.select(results_table.c.hash ==  indiv.__hash__())
-        res = engine.execute(qry).fetchall()
-
-
-        if not res:
-            # This is a new individual, needs evaluation
-            pending_pop.append(indiv)
-
-        else:
-            # This individual has already been evaluated
-            # This should return exactly one row
-            assert(len(res) == 1)
-            row = res[0]
-
-            # Select and assign the fitness rows for this individual
-            objectives = [row[col] for col in objective_columns]
-            indiv.fitness = zip(objective_names,objectives)
-
-            evaluated_pop.append(indiv)
-
-    logging.info("Of these {} unique individuals, {} are new, {} are existing".format(len(pending_pop)+len(evaluated_pop), len(pending_pop),len(evaluated_pop)))
-
-    # Run all the pending individuals, append onto evaluated_pop
-    for indiv in pending_pop:
-        indiv = indiv.evaluate()
-        evaluated_pop.append(indiv)
-
-    # Now re-expand the population including clones
-    final_pop = list()
-    for indiv in population:
-        # This individual MUST have been evaluated now, either newly or existing
-        assert(indiv in evaluated_pop)
-
-        # Get this individual from the evaluated set
-        index = evaluated_pop.index(indiv)
-        final_pop.append(evaluated_pop[index])
-
-    # Return this generation back for addition into DB
-    # add_population_db also checks first for duplicates before adding them to results
-    # The generation number will be automatically added based on last gen number
-    return final_pop
-
-#--- Objects
-
-class Mapping(object):
-    def __init__(self, design_space, objective_space):
-        self.design_space = design_space
-        self.objective_space = objective_space
-        #self.individual = individual
-        #self.evaluator = evaluator
-
-        logging.info(self)
-    #, generating {} instances
-
-
+    # Information about the space -------------
     def __str__(self):
-        return "Mapping dimension {} domain to dimension {} range".format(self.design_space.dimension,
-                                                                  self.objective_space.dimension)
+        return "ObjectiveSpace: {} Dimensions : {}".format(self.dimension,zip(self.objective_names,self.objective_goals))
 
+    @property
+    def dimension(self):
+        return len(self.objective_names)
 
-    def assign_individual(self, Individual):
-        self.Individual = Individual
-        logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
-
-    def assign_fitness(self, Fitness):
-        self.fitness = Fitness
-        logging.info("This mapping will produce fitness of class {}".format(Fitness.__name__))
-    
-    def clone_ind(self, ind):
-
-    
-    
-    
-
-        
-        
-        
-        raise
-        #print(ind.fitness)
-        #print(ind.fitness())
-        cloned_Ind = Individual2(ind.chromosome, ind.fitness)
-        assert(cloned_Ind is not ind)
-
-        return cloned_Ind
-    
-    # Generating points in the space-------------
-    def get_random_mapping(self, flg_verbose = False):
-        """
-        Randomly sample all basis_set vectors, return a random variable vector
-        """
-        
-        chromosome = list()
-        #indices = list()
-        #vtypes = list()
-        #labels = list()
-        for var in self.design_space.basis_set:
-            this_var = var.get_random_obj()
-            chromosome.append(this_var)
-            #indices.append(var.index)
-            #vtypes.append(var.vtype)
-            #labels.append(var.name)
-
-        #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
-        
-        
-        this_ind = self.Individual(chromosome=chromosome, 
-                                    #names=labels,
-                                    #vtypes = vtypes,
-                                    #indices=indices, 
-                                    #fitness_names = self.objective_space.objective_names, 
-                                    fitness=self.fitness()
-                                    )
-        if flg_verbose:
-            logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
-            logging.debug("Returned random individual {}".format(this_ind))
-        
-        return this_ind
-
-    def get_random_population(self,pop_size):
-        """Call get_random_mapping n times to generate a list of individuals
-        """
-        indiv_list = list()
-        for idx in range(pop_size):
-            indiv_list.append(self.get_random_mapping())
-
-        logging.info("Retrieved {} random mappings from a space of {} elements".format(pop_size, self.design_space.get_cardinality()))
-
-        return indiv_list
-
-    def get_global_search(self):
-        tuple_set = list()
-        names = list()
-        indices = list()
-        for variable in self.design_space.basis_set:
-            tuple_set.append(variable.variable_tuple)
-            names.append(variable.name)
-            indices.append(None)
-
-        run_list = list()
-        for vector in itertools.product(*tuple_set):
-            #print(vector)
-            this_indiv = self.individual(names,vector,indices,self.evaluator)
-            #print(this_indiv)
-            run_list.append(this_indiv)
-        #raise
-        log_string = "Retrieved {} individuals over {}-dimension design space".format(len(run_list),self.design_space.dimension)
-        logging.info(log_string)
-
-        return run_list
-
-    def getHyperCorners(self):
-        raise
-        pass
-
+#--- Design space
 
 class Allele(object):
     """
-
     Init Attributes
     name - A label for the variable. Required.
     locus - 
@@ -392,7 +232,6 @@ class Allele(object):
     Internal Attributes
     index = None - The corresponding index of the generated value
     value = The current value of the variable, defined by the index
-
     """
     def __init__(self, name, locus, vtype, value, index, ordered):
         self.name = name
@@ -434,8 +273,8 @@ class Variable(DB_Base):
     Internal Attributes
     index = None - The corresponding index of the generated value
     value = The current value of the variable, defined by the index
-
     """
+    
     __tablename__ = 'Variables'
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -465,35 +304,14 @@ class Variable(DB_Base):
             print('Initialize with a list or tuple')
             raise
 
-
-        # Convert the variable tuple to the database
-        # Create the class which holds the
-
-        #print(variable_tuple)
-
         self.ValueClass = generate_variable_table_class(name)
         logging.debug("Variable value class; {}".format(self.ValueClass))
-        
-        #print(ValueClass)
-        #print(dir(ValueClass))
-        #print(ValueClass.__init__)
-        #this_val = ValueClass(1)
-        #print(this_val)
-        #print(this_val.value)
-        #raise
-        #print(this_val)
-        #print)
 
         variable_class_tuple = [self.ValueClass(val) for val in variable_tuple]
-        #print(variable_class_tuple[0])
-        #print(variable_class_tuple[0].__table__)
-        #print(variable_class_tuple[0])
-        #raise
+
         self.variable_tuple = variable_class_tuple
 
         self.ordered = ordered
-
-        #self.value_type = type(self.variable_tuple[0])
 
         self.index = None
 
@@ -506,7 +324,11 @@ class Variable(DB_Base):
     @property
     def val_str(self):
         return str(self.variable_tuple[self.index])
-    
+
+    @property
+    def value(self):
+        return self.variable_tuple[self.index]
+
     @classmethod
     def from_range(cls, name, locus, vtype, lower, resolution, upper):
         """
@@ -535,7 +357,7 @@ class Variable(DB_Base):
         length = (upper - lower) / resolution + 1
         vTuple = [lower + i * resolution for i in range(0,length)]
 
-        return cls(name, locus, vtype, vTuple,True)
+        return cls(name, locus, vtype, vTuple, True)
 
     @classmethod
     def ordered(cls,name, vtype, vTuple):
@@ -555,7 +377,6 @@ class Variable(DB_Base):
         """
         Return a random value from all possible values
         """
-
         self.index = random.choice(range(len(self)))
         return self
 
@@ -577,13 +398,12 @@ class Variable(DB_Base):
                               self.index, 
                               self.ordered)
          
-    def get_random_obj(self):
+    def return_random_allele(self):
         """
         Return a random value from all possible values
         """
 
         self.index = random.choice(range(len(self)))
-        
         
         return Allele(self.name, 
                       self.locus,
@@ -607,11 +427,9 @@ class Variable(DB_Base):
         valueList.remove(self.value)
         self.value = random.choice(valueList)
 
-        #self.value
-        #return Variable(self.name, self.variable_tuple,self.ordered,self.value)
         return self
 
-    def step_random(self,step_size = 1):
+    def step_random(self, start_index, step_size = 1):
         """ Step in a random direction (up or down) step_size within the possible values
         Must be ordered, otherwise this makes no sense
 
@@ -637,14 +455,9 @@ class Variable(DB_Base):
             else:
                 pass
 
-            #print "Upper {} lower {} newIdx {}".format(upperIndexBound, lowerIndexBound, newIndex)
             self.index = newIndex
-            #self.value = self.variable_tuple[self.index]
 
             return self
-
-#        else:
-#            return self.get_new_random()
 
     def this_val_str(self):
         
@@ -724,56 +537,7 @@ class Variable(DB_Base):
         return self
 
 
-class Generation(DB_Base):
-    __tablename__ = 'Generations'
-    id = Column(Integer, primary_key=True)
-    gen = Column(Integer, nullable = False)    
-    individual = Column(Integer, sa.ForeignKey('Results.hash'), nullable = False,)
-    
-    
-    def __init__(self, gen, individual):
-        self.gen = gen
-        self.individual = individual
 
-
-
-class Objective(DB_Base):
-    __tablename__ = 'Objectives'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    goal = Column(String)
-    
-    def __init__(self, name, goal):
-        self.name = name
-        self.goal = goal
-
-class ObjectiveSpace(object):
-    def __init__(self, objectives):
-        objective_names = [obj.name for obj in objectives]
-        objective_goals = [obj.goal for obj in objectives]
-        
-        assert not isinstance(objective_names, basestring)
-        assert not isinstance(objective_goals, basestring)
-        assert(type(objective_names) == list or type(objective_names) == tuple)
-        assert(type(objective_goals) == list or type(objective_names) == tuple)
-        assert(len(objective_names) == len(objective_goals))
-        for obj in objective_names:
-            assert obj not in  ["hash", "start", "finish"]
-
-        #for goal in objective_goals:
-        #    assert(goal == "Min" or goal == "Max")
-
-        self.objective_names = objective_names
-        self.objective_goals = objective_goals
-        logging.debug("Created {}".format(self))
-
-    # Information about the space -------------
-    def __str__(self):
-        return "ObjectiveSpace: {} Dimensions : {}".format(self.dimension,zip(self.objective_names,self.objective_goals))
-
-    @property
-    def dimension(self):
-        return len(self.objective_names)
 
 
 class DesignSpace(object):
@@ -908,7 +672,7 @@ class Individual2(list):
         The hash compresses this information to an integer value which should have no collisions
         """
         
-        index_list = [gene.index for gene in self.chromosome]
+        index_list = [allele.index for allele in self.chromosome]
         return hash(tuple(index_list))
         #return hash(tuple(zip(self[:])))
 
@@ -939,93 +703,120 @@ class Individual2(list):
             setattr(self, name, fit)
         #setattr(self, name, fit)       
 
-  
-class Individual(object):
-    
-    """
-    Holds a variable vector with labels;
-    chromosome
-    labels
-    indices
+#--- Evolution
 
 
-    fitness
+class Mapping(object):
+    def __init__(self, design_space, objective_space):
+        self.design_space = design_space
+        self.objective_space = objective_space
+        #self.individual = individual
+        #self.evaluator = evaluator
 
+        logging.info(self)
+    #, generating {} instances
 
-
-    The logic of the variable is stored in the design space basis vectors
-    """
-
-    def __init__(self, labels, chromosome, indices, evaluator, fitness = None):
-        raise
-        self.labels = labels
-        self.chromosome = chromosome
-        self.indices = indices
-        self.evaluator = evaluator
-        self.fitness = fitness
-
-    @property
-    def evaluated(self):
-        if not self.fitness: return False
-        else: return True
 
     def __str__(self):
+        return "Mapping dimension {} domain to dimension {} range".format(self.design_space.dimension,
+                                                                  self.objective_space.dimension)
 
-        name_val_tuple = zip(self.labels, self.chromosome)
 
-        these_pairs = ["{} = {}".format(*this_pair) for this_pair in name_val_tuple]
-        thisStr = ", ".join(these_pairs)
+    def assign_individual(self, Individual):
+        self.Individual = Individual
+        logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
 
-        if self.fitness:
-            thisStr = thisStr + " -> " + ", ".join(["{}={}".format(fit[0],fit[1]) for fit in self.fitness])
-        else:
-            thisStr = thisStr + " -> (Unitialized)"
-        return thisStr
-
-    # This defines the uniqueness of the individual
-    def __eq__(self, other):
-        if self.__hash__() == other.__hash__():
-            return True
-        else:
-            return False
-
-    def __hash__(self):
-        """This defines the uniqueness of the individual
-        The ID of an individual could be, for example, the string composed of the variable vectors
-        But this would be expensive and complicated to store in a database
-        The hash compresses this information to an integer value which should have no collisions
-        """
-
-        return hash(tuple(zip(self.labels,self.chromosome)))
-
-    def __getitem__(self,index):
-        return self.chromosome[index]
-
-    def __setitem__(self,index, value):
+    def assign_fitness(self, Fitness):
+        self.fitness = Fitness
+        logging.info("This mapping will produce fitness of class {}".format(Fitness.__name__))
+    
+    def clone_ind(self, ind):
         raise
-        self.chromosome[index],
+        #print(ind.fitness)
+        #print(ind.fitness())
+        cloned_Ind = Individual2(ind.chromosome, ind.fitness)
+        assert(cloned_Ind is not ind)
 
-    def next(self):
+        return cloned_Ind
+    
+    # Generating points in the space-------------
+    def get_random_mapping(self, flg_verbose = False):
         """
-        Iterator over tuple of chromosomes
+        Randomly sample all basis_set vectors, return a random variable vector
         """
-        if self.iterIndex < len(self.chromosome):
-            # This is 0 at start
-            value = self.chromosome[self.iterIndex]
-            self.iterIndex += 1
-            return value
-        else:
-            raise StopIteration
+        
+        chromosome = list()
+        #indices = list()
+        #vtypes = list()
+        #labels = list()
+        for var in self.design_space.basis_set:
+            this_var = var.return_random_allele()
+            chromosome.append(this_var)
+            #indices.append(var.index)
+            #vtypes.append(var.vtype)
+            #labels.append(var.name)
 
-    def __iter__(self):
-        # Start iteration at 0
-        self.iterIndex = 0
-        return self
+        #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
+        
+        
+        this_ind = self.Individual(chromosome=chromosome, 
+                                    #names=labels,
+                                    #vtypes = vtypes,
+                                    #indices=indices, 
+                                    #fitness_names = self.objective_space.objective_names, 
+                                    fitness=self.fitness()
+                                    )
+        if flg_verbose:
+            logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
+            logging.debug("Returned random individual {}".format(this_ind))
+        
+        return this_ind
 
-    def clone(self):
+    def get_random_population(self,pop_size):
+        """Call get_random_mapping n times to generate a list of individuals
+        """
+        indiv_list = list()
+        for idx in range(pop_size):
+            indiv_list.append(self.get_random_mapping())
+
+        logging.info("Retrieved {} random mappings from a space of {} elements".format(pop_size, self.design_space.get_cardinality()))
+
+        return indiv_list
+
+    def get_global_search(self):
+        tuple_set = list()
+        names = list()
+        indices = list()
+        for variable in self.design_space.basis_set:
+            tuple_set.append(variable.variable_tuple)
+            names.append(variable.name)
+            indices.append(None)
+
+        run_list = list()
+        for vector in itertools.product(*tuple_set):
+            #print(vector)
+            this_indiv = self.individual(names,vector,indices,self.evaluator)
+            #print(this_indiv)
+            run_list.append(this_indiv)
+        #raise
+        log_string = "Retrieved {} individuals over {}-dimension design space".format(len(run_list),self.design_space.dimension)
+        logging.info(log_string)
+
+        return run_list
+
+    def getHyperCorners(self):
         raise
-        clonedIndiv = Individual(self.chromosome)
-        return clonedIndiv
+        pass
 
-    def evaluate(self):
-        return self.evaluator(self)
+class Generation(DB_Base):
+    __tablename__ = 'Generations'
+    id = Column(Integer, primary_key=True)
+    gen = Column(Integer, nullable = False)    
+    individual = Column(Integer, sa.ForeignKey('Results.hash'), nullable = False,)
+    
+    
+    def __init__(self, gen, individual):
+        self.gen = gen
+        self.individual = individual
+
+

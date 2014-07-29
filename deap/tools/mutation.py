@@ -1,3 +1,4 @@
+from __future__ import print_function
 from __future__ import division
 import math
 import random
@@ -45,8 +46,9 @@ def mutGaussian(individual, mu, sigma, indpb):
     
     return individual,
 
-def mj_random_jump(individual, mapping, jumpsize, indpb):
-    
+def mj_random_jump(individual, mapping, jumpsize, indpb, path_evolog):
+        
+
     jump_digits = len(str(123))
     
     for allele in individual.chromosome:
@@ -102,7 +104,11 @@ def mj_random_jump(individual, mapping, jumpsize, indpb):
     mutated_ind.re_init()
     mutate_signature = ['{number:{width}}'.format(width=jump_digits, number=jsize) for jsize in mutate_signature]
     
-    logging.debug("{:15} [{}] {}".format(original_hash, "|".join(mutate_signature), mutated_ind.hash))
+    
+    with open(path_evolog, 'a') as evolog:
+        
+        print("{:15} [{}] {}".format(original_hash, "|".join(mutate_signature), mutated_ind.hash),file=evolog, )
+        #logging.debug()
     
     return mutated_ind
 

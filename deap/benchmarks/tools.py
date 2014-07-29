@@ -262,6 +262,15 @@ def diversity(first_front, first, last):
     return delta
 
 def convergence(first_front, optimal_front):
+    
+    
+    
+    #print(first_front.shape())
+    #for i in first_front:
+    #    print(i.fitness)
+    
+    #print(optimal_front)
+    
     """Given a Pareto front `first_front` and the optimal Pareto front, 
     this function returns a metric of convergence
     of the front as explained in the original NSGA-II article by K. Deb.

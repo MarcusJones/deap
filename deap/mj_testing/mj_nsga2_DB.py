@@ -25,6 +25,8 @@ myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
 from UtilityLogger import loggerCritical,loggerDebug
 
+
+
 import deap.mj_utilities.util_db_process as util_dbproc
 
 
@@ -43,6 +45,7 @@ import cProfile
 import numpy as np
 import json
 import sqlalchemy as sa
+from decimal import Decimal
 
 #===============================================================================
 # Import design space
@@ -94,12 +97,12 @@ def assert_subset(pop1, pop2):
 
 
 
-def printpoplist(pop, msg=None):
+def printpoplist(pop, evolog, msg=None):
     hashes = [ind.hash for ind in pop]
     hashes.sort()
     
-    print("{:20} {}".format(msg,hashes))
-    pass
+    print("{:20} {}".format(msg,hashes), file = evolog)
+    #pass
 
 def get_gen_evo_dict_entry(pop):
     hashes = [ind.hash for ind in pop]
@@ -112,16 +115,18 @@ def printpop(msg, pop):
         print(ind)
         
         
-def print_gen_dict(gd,gennum):
-    print("Generation {}".format(gennum))
+def print_gen_dict(gd,gennum, path_evolog):
     
-    print("{:17} {}".format('Start population',gd['Start population']))
-    #print("{:17} {}".format('Population',gd['Population']))
-    print("{:17} {}".format('Parents',gd['Selected parents']))
-    print("{:17} {}".format('Mated offspring',gd['Mated offspring']))
-    print("{:17} {}".format('Mutated offspring',gd['Mutated offspring']))
-    print("{:17} {}".format('Combined',gd['Combined']))
-    print("{:17} {}".format('Next',gd['Next population']))
+    with open(path_evolog, 'a') as evolog:
+        print("Generation {}".format(gennum))
+        
+        print("{:17} {}".format('Start population',gd['Start population']), file=evolog)
+        #print("{:17} {}".format('Population',gd['Population']), file = evolog)
+        print("{:17} {}".format('Parents',gd['Selected parents']), file = evolog)
+        print("{:17} {}".format('Mated offspring',gd['Mated offspring']), file = evolog)
+        print("{:17} {}".format('Mutated offspring',gd['Mutated offspring']), file = evolog)
+        print("{:17} {}".format('Combined',gd['Combined']), file = evolog)
+        print("{:17} {}".format('Next',gd['Next population']), file = evolog)
 
 def printhashes(pop, msg=""):
     hash_list = [ind.hash for ind in pop]
@@ -178,7 +183,6 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         newly_evald = dict()
         while eval_pop:
             ind = eval_pop.pop()
-            
             # Check if it has been recently evaluated
             try: 
                 logging.debug("Recently evaluated: {} ".format(newly_evald[ind.hash]))
@@ -210,7 +214,7 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         
     return final_pop, eval_count
     
-def main(path_db, seed=None):
+def main(path_db, path_evolog, seed=None):
     #===========================================================================
     #---Database
     #===========================================================================
@@ -219,6 +223,10 @@ def main(path_db, seed=None):
     #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
     Session = sa.orm.sessionmaker(bind=engine)
     session = Session()
+    
+    with open(path_evolog, 'w+') as evolog:
+        print("Start log", file=evolog)
+    
     logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
 
     # Results
@@ -234,28 +242,31 @@ def main(path_db, seed=None):
     stats.register("min", np.min, axis=0)
     stats.register("max", np.max, axis=0)
     
-    logbook = tools.Logbook()
-    logbook.header = "gen", "evals", "std", "min", "avg", "max"
+    #logbook = tools.Logbook()
+    #logbook.header = "gen", "evals", "std", "min", "avg", "max"
     
     #===========================================================================
     #---Parameters
     #===========================================================================
     NDIM = 30
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.01'
+    RES_STR = '0.0001'
+    var_range = (Decimal(BOUND_UP_STR) - Decimal(BOUND_LOW_STR)) / Decimal(RES_STR)
+    var_range = int(var_range)    
+    JUMPSIZE = int(var_range * 0.01)
+    #JUMPSIZE = 100
     NGEN = 250
     POPSIZE = 4*10
     P_CX_THIS_PAIR = 0.5
     P_CX_THESE_ALLELES = 0.1
-    JUMPSIZE = 100
     toolbox = base.Toolbox()
     
     #===========================================================================
     #---Algorithm
     #===========================================================================
     toolbox.register("evaluate", mj.mj_zdt1_decimal)
-    toolbox.register("mate", tools.mj_list_flip, indpb = P_CX_THESE_ALLELES)
-    toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM)
+    toolbox.register("mate", tools.mj_list_flip, indpb = P_CX_THESE_ALLELES,path_evolog = path_evolog)
+    toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM, path_evolog = path_evolog)
     toolbox.register("select", tools.selNSGA2)
     
     #===========================================================================
@@ -341,9 +352,9 @@ def main(path_db, seed=None):
     session.commit()
 
 
-    record = stats.compile(pop)
-    logbook.record(gen=0, evals=eval_count, **record)
-    print(logbook.stream)
+    #record = stats.compile(pop)
+    #logbook.record(gen=0, evals=eval_count, **record)
+    #print(logbook.stream)
 
     #---Start evolution
     for gen in range(1, NGEN):
@@ -439,9 +450,9 @@ def main(path_db, seed=None):
         
         this_gen_evo['Next population'] = get_gen_evo_dict_entry(pop)
         
-        record = stats.compile(pop)
-        logbook.record(gen=gen, evals=eval_count, **record)
-        print(logbook.stream)
+        #record = stats.compile(pop)
+        #logbook.record(gen=gen, evals=eval_count, **record)
+        #print(logbook.stream)
 
         #=======================================================================
         # Add this generation
@@ -456,7 +467,7 @@ def main(path_db, seed=None):
         
         #util_sa.printOnePrettyTable(engine, 'Results', maxRows = None)
         
-        print_gen_dict(this_gen_evo,gen)
+        print_gen_dict(this_gen_evo,gen,path_evolog)
         
         session.add_all(gen_rows)
         session.commit()
@@ -509,8 +520,8 @@ if __name__ == "__main__":
         cProfile.run('main(path_db)', filename=path_profile)
     
     if flgp == 2:
-        
-        pop, stats = main(path_db)
+        path_evolog = r'c:\ExportDir\\test_log.txt'
+        pop, stats = main(path_db,path_evolog)
         pop.sort(key=lambda x: x.fitness.values)
         
         print(stats)
