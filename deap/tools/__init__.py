@@ -21,12 +21,15 @@ also contains utility tools to enhance the basic algorithms with
 :class:`History`.
 """
 
+from mj_crossover import *
+#from .mj_emo import *
+from deap.tools.mj_mutation import *
+
 from .constraint import *
 from .crossover import *
 from .emo import *
-#from .mj_emo import *
+from deap.tools.mutation import *
 from .init import *
 from .migration import *
-from .mutation import *
 from .selection import *
 from .support import *

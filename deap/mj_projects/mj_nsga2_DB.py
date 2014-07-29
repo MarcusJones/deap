@@ -27,16 +27,14 @@ from UtilityLogger import loggerCritical,loggerDebug
 
 
 
-import deap.mj_utilities.util_db_process as util_dbproc
-
-
 #===============================================================================
 # Utilities
 #===============================================================================
+import deap.mj_utilities.util_db_process as util_dbproc
 from deap.mj_utilities.util_graphics import print_res
 import utility_SQL_alchemy as util_sa
 from deap.mj_utilities.db_base import DB_Base
-import deap.mj_utilities.db_base
+import deap.mj_utilities.util_general as util
 import utility_path as util_path
 import cProfile
 #===============================================================================
@@ -250,7 +248,7 @@ def main(path_db, path_evolog, seed=None):
     #===========================================================================
     NDIM = 30
     BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.0001'
+    RES_STR = '0.01'
     var_range = (Decimal(BOUND_UP_STR) - Decimal(BOUND_LOW_STR)) / Decimal(RES_STR)
     var_range = int(var_range)    
     JUMPSIZE = int(var_range * 0.01)

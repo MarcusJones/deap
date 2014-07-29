@@ -280,10 +280,10 @@ class Variable(DB_Base):
     name = Column(String)
     vtype = Column(String)
 
-    def __init__(self, name, locus, vtype, variable_tuple, ordered):
+    def __init__(self, name, vtype, variable_tuple, ordered):
         self.vtype = vtype
         self.name = name
-        self.locus = locus
+        self.locus = -1
         
         if isinstance(variable_tuple,tuple):
             pass
@@ -305,7 +305,7 @@ class Variable(DB_Base):
             raise
 
         self.ValueClass = generate_variable_table_class(name)
-        logging.debug("Variable value class; {}".format(self.ValueClass))
+        #logging.debug("Variable value class; {}".format(self.ValueClass))
 
         variable_class_tuple = [self.ValueClass(val) for val in variable_tuple]
 
@@ -330,7 +330,7 @@ class Variable(DB_Base):
         return self.variable_tuple[self.index]
 
     @classmethod
-    def from_range(cls, name, locus, vtype, lower, resolution, upper):
+    def from_range(cls, name, vtype, lower, resolution, upper):
         """
         Init overload - easy creation from a lower to upper decimal with a step size
         Arguments are string for proper decimal handling!
@@ -357,10 +357,10 @@ class Variable(DB_Base):
         length = (upper - lower) / resolution + 1
         vTuple = [lower + i * resolution for i in range(0,length)]
 
-        return cls(name, locus, vtype, vTuple, True)
+        return cls(name, vtype, vTuple, True)
 
     @classmethod
-    def ordered(cls,name, vtype, vTuple):
+    def ordered(cls, name, vtype, vTuple):
         """
         Init overload - the variable is ordered (default)
         """
@@ -557,6 +557,9 @@ class DesignSpace(object):
 
 
         # Creation
+        for i,var in enumerate(basis_set):
+            var.locus = i
+        
         self.basis_set = basis_set
 
         #self.objectives = objectives
