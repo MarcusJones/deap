@@ -35,10 +35,6 @@ from deap.mj_utilities.db_base import DB_Base
 import deap.mj_utilities.util_general as util
 import utility_path as util_path
 import cProfile
-
-
-import deap.mj_operators as operators
-
 #===============================================================================
 # Import other
 #===============================================================================
@@ -213,113 +209,27 @@ def evaluate_pop(pop,session,Results,mapping,toolbox):
         assert ind.fitness.valid, "{}".format(ind)
         
     return final_pop, eval_count
-    
-def main(path_db, path_evolog, seed=None):
-    #===========================================================================
-    #---Database
-    #===========================================================================
-    engine = sa.create_engine("sqlite:///{}".format(path_db), echo=0, listeners=[util_sa.ForeignKeysListener()])
-    #engine = sa.create_engine("mysql:///{}".format(path_db), echo=0,listeners=[util_sa.ForeignKeysListener()])
-    #engine = sa.create_engine('sqlite:///{}'.format(self.path_new_sql), echo=self.ECHO_ON)
-    Session = sa.orm.sessionmaker(bind=engine)
-    session = Session()
-    
-    with open(path_evolog, 'w+') as evolog:
+
+def nsga2(settings, mapping, session):
+    with open(settings['path_evolog'], 'w+') as evolog:
         print("Start log", file=evolog)
-    
+
+    engine = session.bind
     logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
 
-    # Results
-    path_excel_out = r"C:\ExportDir\test_before.xlsx"
-
-
-    #===========================================================================
-    # Statistics
-    #===========================================================================
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean, axis=0)
-    stats.register("std", np.std, axis=0)
-    stats.register("min", np.min, axis=0)
-    stats.register("max", np.max, axis=0)
-    
-    #logbook = tools.Logbook()
-    #logbook.header = "gen", "evals", "std", "min", "avg", "max"
-    
-    #===========================================================================
-    #---Parameters
-    #===========================================================================
-    NDIM = 30
-    BOUND_LOW_STR, BOUND_UP_STR = '0.0', '1.0'
-    RES_STR = '0.01'
-    var_range = (Decimal(BOUND_UP_STR) - Decimal(BOUND_LOW_STR)) / Decimal(RES_STR)
-    var_range = int(var_range)    
-    JUMPSIZE = int(var_range * 0.01)
-    #JUMPSIZE = 100
-    NGEN = 250
-    POPSIZE = 4*10
-    P_CX_THIS_PAIR = 0.5
-    P_CX_THESE_ALLELES = 0.1
-    toolbox = base.Toolbox()
-    
     #===========================================================================
     #---Algorithm
     #===========================================================================
     toolbox.register("evaluate", mj.mj_zdt1_decimal)
-    toolbox.register("mate", operators.mj_list_flip, indpb = P_CX_THESE_ALLELES,path_evolog = path_evolog)
-    toolbox.register("mutate", operators.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM, path_evolog = path_evolog)
+    toolbox.register("mate", tools.mj_list_flip, indpb = P_CX_THESE_ALLELES,path_evolog = path_evolog)
+    toolbox.register("mutate", tools.mj_random_jump, jumpsize=JUMPSIZE,indpb=1.0/NDIM, path_evolog = path_evolog)
     toolbox.register("select", tools.selNSGA2)
-    
-    #===========================================================================
-    #---Variables and design space
-    #===========================================================================
-    # Create basis set
-    var_names = ['var{}'.format(num) for num in range(NDIM)]    
-    #with loggerCritical():
-    with loggerDebug():
-        basis_set = [ds.Variable.from_range(name, 'float', BOUND_LOW_STR, RES_STR, BOUND_UP_STR) for i,name in enumerate(var_names)]
-    
-    # Add to DB
-    for var in basis_set:
-        session.add_all(var.variable_tuple)
-        
-    # Add the variable names to the DB
-    session.add_all(basis_set)
-
-    # Create DSpace
-    thisDspace = ds.DesignSpace(basis_set)
-
-
-    #===========================================================================
-    #---Objectives
-    #===========================================================================
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0), names = ('obj1', 'obj2'))
-        
-    # Create OSpace from Fitness
-    objs = list()
-    for name,weight in zip(creator.FitnessMin.names,creator.FitnessMin.weights):
-        objs.append(ds.Objective(name,weight))
-    this_obj_space = ds.ObjectiveSpace(objs)
-    session.add_all(objs)    
-        
-    #=======================================================================
-    #---Mapping
-    # Results is composed of a class and a table, mapped together        
-    #=======================================================================
-    mapping = ds.Mapping(thisDspace, this_obj_space)
-    res_ORM_table = ds.generate_individuals_table(mapping)
-    Results = ds.generate_ORM_individual(mapping)
-    sa.orm.mapper(Results, res_ORM_table) 
-
-    DB_Base.metadata.create_all(engine)
-    session.commit()
-    #util_sa.print_all_pretty_tables(engine, 20000)
 
     #===========================================================================
     # First generation    
     #===========================================================================
     #---Create the population
     mapping.assign_individual(ds.Individual2)
-    mapping.assign_fitness(creator.FitnessMin)
     pop = mapping.get_random_population(POPSIZE)
     
     #print(pop[0].chromosome[0])

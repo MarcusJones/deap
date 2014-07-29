@@ -15,3 +15,8 @@
 __author__ = "DEAP Team"
 __version__ = "1.1"
 __revision__ = "1.1.0"
+
+#__all__ = ['creator']
+
+import creator
+import base
