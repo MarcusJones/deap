@@ -80,11 +80,20 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
             print(result)
             
             print(dir(result))
-        for var in mapping.design_space.basis_set:
-            print(var)
-            print(var.locus)
-            #var.locus = 
-            print(var.return_allele())
+            this_chromosome = list()
+            for var in mapping.design_space.basis_set:
+                
+                index = getattr(result, "var_c_{}".format(var.name))
+                var.index = index
+                #print(var)
+                this_chromosome.append(var.return_allele())
+                #var.index = 
+            print(this_chromosome)
+        raise
+
+        print(var.index)
+        var.index = 20
+        
         #print()
         #pop = mapping.get_random_population(1)
         #print(pop[0])
@@ -97,7 +106,7 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
 #                               self.val_str, 
 #                               self.index, 
 #                               self.ordered)
-        raise
+        
     #---Create a new population    
     else: 
         
