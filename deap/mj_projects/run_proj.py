@@ -30,6 +30,7 @@ import re
 import deap as dp
 import shutil
 import utility_SQL_alchemy as util_sa
+import deap.mj_utilities.util_db_process as util_proc
 import sqlalchemy as sa
 from deap.mj_utilities.db_base import DB_Base
 
@@ -43,10 +44,40 @@ def get_settings(book):
     all_data = zip(*all_data)
     
     settings = book.get_row_as_dict(all_data,1)
+    settings['excel_path'] = book.excelPath
     
     return settings
 
 def build_structure(settings):
+    
+    if settings['continue_run'] == 'Yes':
+        
+        # Get the path of the excel file, which is always stored at the root of project
+        settings['run_full_path'] = os.path.split(settings['excel_path'])[0]
+        
+        #run_root_directory
+        assert(os.path.exists(settings['run_root_directory']))
+        
+        path_sql = os.path.join(settings['run_full_path'],'SQL','')
+        path_sql_db = os.path.join(path_sql, 'results.sql')
+        settings['path_sql_db'] = path_sql_db
+        
+        path_mlab = os.path.join(settings['run_root_directory'],'Matlab')
+        settings['path_matlab'] = path_mlab
+        
+        settings['path_evolog'] = os.path.join(settings['run_full_path'],'evolog.txt')
+        
+        assert os.path.exists(settings['run_root_directory']), "{}".format(settings['run_root_directory'])
+        assert os.path.isfile(settings['path_sql_db']), "{}".format(settings['path_sql_db'])
+        settings['existing_db'] = 'Yes'
+        assert os.path.exists(settings['run_full_path']), "{}".format(settings['path_matlab'])
+        assert os.path.isfile(settings['path_evolog']), "{}".format(settings['path_evolog'])
+        
+        return settings
+    elif settings['delete_folder']== 'Yes':
+        raise
+    else:
+        pass
     
     #===========================================================================
     # Check root
@@ -79,7 +110,8 @@ def build_structure(settings):
         os.makedirs(path_sql)
     path_sql_db = os.path.join(path_sql, 'results.sql')
     settings['path_sql_db'] = path_sql_db
-    
+    settings['existing_db'] = 'No'
+
     path_mlab = os.path.join(path_run,'Matlab')
     #print(path_sql)
     if not os.path.exists(path_mlab):
@@ -98,17 +130,7 @@ def build_structure(settings):
     #===========================================================================
     settings['path_evolog'] = os.path.join(path_run,'evolog.txt')
     
-    #raise
     return settings
-                
-    #settings['run_root_directory']
-    #if not util_path.check_path():
-    #    util_path.create_dir()
-    
-    
-    
-    #rows = [row for row in all_data[2:] if row[0]]
-    #row_nums = (xrange(1, 2+len(variable_rows)))        
 
 #===============================================================================
 #---Algorithm
@@ -256,7 +278,7 @@ def get_objectives(fitness):
 #--- Get whole project
 #===============================================================================
 
-def get_project_def(path_book):
+def run_project_def(path_book):
     book = util_excel.ExcelBookRead2(path_book)         
 
     #===========================================================================
@@ -296,21 +318,23 @@ def get_project_def(path_book):
     
     design_space = ds.DesignSpace(variables)
     
-    # Add vectors to DB
-    for var in design_space.basis_set:
-        session.add_all(var.variable_tuple)
-        
-    # Add the variable names to the DB
-    session.add_all(design_space.basis_set)
 
     
     # Get ObjectiveSpace
     Fitness = get_fitness(book)
     
     objs = get_objectives(Fitness)
-    session.add_all(objs) 
     objective_space = ds.ObjectiveSpace(objs)
-    session.add_all(objs)    
+
+    # Add vectors to DB
+    if settings['existing_db'] == 'No':
+        for var in design_space.basis_set:
+            session.add_all(var.variable_tuple)
+        session.add_all(objs)    
+    
+        # Add the variable names to the DB
+        session.add_all(design_space.basis_set)
+
         
     #===========================================================================
     #---Mapping
@@ -319,7 +343,7 @@ def get_project_def(path_book):
     res_ORM_table = ds.generate_individuals_table(mapping)
     Results = ds.generate_ORM_individual(mapping)
     sa.orm.mapper(Results, res_ORM_table) 
-
+    
     DB_Base.metadata.create_all(engine)
     session.commit()
     
@@ -333,15 +357,17 @@ def get_project_def(path_book):
     #===========================================================================
     #---Algorithm
     #===========================================================================
+
     algorithm = get_algorithm(book)
     
     parameters = get_parameters(book)
     for k,v, in parameters.iteritems():
        print("{:>30} : {:<30} {}".format(k,v, type(v)))
-        
+    
     #===========================================================================
     #---Execute    
     #===========================================================================
+    
     algorithm['name'](settings=settings, 
                       algorithm=algorithm,
                       parameters=parameters,
@@ -350,6 +376,10 @@ def get_project_def(path_book):
                       session=session,
                       Results=Results)
     
+    #===========================================================================
+    # Post process
+    #===========================================================================
+    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
     
 #===============================================================================
 # Unit testing
@@ -361,13 +391,16 @@ class allTests(unittest.TestCase):
         print("**** TEST {} ****".format(whoami()))
         curr_dir = os.path.dirname(os.path.realpath(__file__))
         self.path_book = os.path.abspath(curr_dir + r'\..\tests\testing_zdt1.xlsx')
+        self.path_book = r'C:\TestProjectRoot\Run139\definition.xlsx'
+        
+        
         #self.book = util_excel.ExcelBookRead2(self.path_book)            
         #print(self.book)
         
     def test010_SimpleCreation(self):
         print("**** TEST {} ****".format(whoami()))
-
-        get_project_def(self.path_book)
+        
+        run_project_def(self.path_book)
 #===============================================================================
 # Main
 #===============================================================================

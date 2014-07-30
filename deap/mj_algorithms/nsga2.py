@@ -64,23 +64,60 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
         print("Start log", file=evolog)
 
     engine = session.bind
-
-    #===========================================================================
-    # First generation    
-    #===========================================================================
-    #---Create the population
+    
     mapping.assign_individual(ds.Individual2)
-    pop = mapping.get_random_population(parameters['Population size'])
-
-    DB_Base.metadata.create_all(engine)
-    session.commit()
+    
+    last_gen = session.query(ds.Generation).order_by(ds.Generation.id.desc()).first()
+    
+    #---Retrieve a population
+    if last_gen:
+        gennum = last_gen.gen
+        print(gennum)
+        individual_hashes = session.query(ds.Generation.individual).filter(ds.Generation.gen == gennum).all()
+        individual_hashes = [ind_hash[0] for ind_hash in individual_hashes]
+        for ind_hash in individual_hashes:
+            result = session.query(Results).filter(Results.hash == ind_hash).one()
+            print(result)
+            
+            print(dir(result))
+        for var in mapping.design_space.basis_set:
+            print(var)
+            print(var.locus)
+            #var.locus = 
+            print(var.return_allele())
+        #print()
+        #pop = mapping.get_random_population(1)
+        #print(pop[0])
+        #ds.Allele(self, name, locus, vtype, value, index, ordered)
+        
+        #def return_allele(self):
+#         return Allele(self.name, 
+#                       self.locus,
+#                               self.vtype, 
+#                               self.val_str, 
+#                               self.index, 
+#                               self.ordered)
+        raise
+    #---Create a new population    
+    else: 
+        
+        #===========================================================================
+        # First generation    
+        #===========================================================================
+        
+        pop = mapping.get_random_population(parameters['Population size'])
+    
+        DB_Base.metadata.create_all(engine)
+        session.commit()
+        gennum = 0
+    raise
 
     #---Evaluate first pop
-    print("* GENERATION {:>5} ************************".format(0))
+    print("* GENERATION {:>5} ************************".format(gennum))
     
     pop, eval_count = util.evaluate_pop(pop,session,Results,mapping,algorithm['evaluate'])
 
-    gen_rows = [ds.Generation(0,ind.hash) for ind in pop]
+    gen_rows = [ds.Generation(0,ind_hash.hash) for ind_hash in pop]
     session.add_all(gen_rows)
     
     # Selection
@@ -94,11 +131,11 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
 
 
     #---Start evolution
-    for gen in range(1, parameters['Generations']):
+    for gen in range(gennum+1, parameters['Generations']):
         this_gen_evo = dict()
         print("* GENERATION {:>5} ************************".format(gen))
         
-        crowds = [ind.fitness.crowding_dist for ind in pop]
+        crowds = [ind_hash.fitness.crowding_dist for ind_hash in pop]
         print("Mean crowding: {} Crowding distances {}".format(np.mean(crowds),crowds))
         
         this_gen_evo['Start population'] = util.get_gen_evo_dict_entry(pop)
@@ -109,7 +146,7 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
         
         logging.debug("Selecting generation {}".format(gen))
         parents = operators['select'](pop, len(pop))
-        cloned_parents = [ind.clone() for ind in parents]
+        cloned_parents = [ind_hash.clone() for ind_hash in parents]
 
         this_gen_evo['Selected parents'] = util.get_gen_evo_dict_entry(parents)
         
@@ -133,8 +170,8 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
 
         this_gen_evo['Mated offspring'] = util.get_gen_evo_dict_entry(offspring)
         
-        for ind in offspring:
-            del ind.fitness.values
+        for ind_hash in offspring:
+            del ind_hash.fitness.values
 
         #=======================================================================
         #--- Mutate
@@ -142,33 +179,33 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
         #with loggerCritical():
         with loggerDebug():
             mutated_offspring = list()
-            for ind in offspring:
-                ind = operators['mutate'](ind,
+            for ind_hash in offspring:
+                ind_hash = operators['mutate'](ind_hash,
                                           mapping,
                                           indpb=parameters['Probability mutation'],
                                           jumpsize=parameters['Jump size'],
                                           path_evolog = settings['path_evolog'])
-                mutated_offspring.append(ind)
+                mutated_offspring.append(ind_hash)
                 
 
-        for ind in mutated_offspring:
-            del ind.fitness.values
+        for ind_hash in mutated_offspring:
+            del ind_hash.fitness.values
 
         this_gen_evo['Mutated offspring'] = util.get_gen_evo_dict_entry(mutated_offspring)
             
         #=======================================================================
-        #--- Evaluate the individuals
+        #--- Evaluate the individual_hashes
         #=======================================================================
         logging.debug("Evaluating generation {}".format(gen))
         #eval_offspring = list()
-        cloned_offspring = [ind.clone() for ind in mutated_offspring]
+        cloned_offspring = [ind_hash.clone() for ind_hash in mutated_offspring]
         #eval_offspring, eval_count = evaluate_pop(cloned_offspring,session,Results,mapping,toolbox)
         eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,algorithm['evaluate'])
 
-        for ind in parents:
-            assert ind.fitness.valid, "{}".format(ind)
-        for ind in eval_offspring:
-            assert ind.fitness.valid, "{}".format(ind)
+        for ind_hash in parents:
+            assert ind_hash.fitness.valid, "{}".format(ind_hash)
+        for ind_hash in eval_offspring:
+            assert ind_hash.fitness.valid, "{}".format(ind_hash)
 
         #=======================================================================
         #--- Select the next generation population
@@ -180,13 +217,13 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
         assert(len(combined_pop) == len(parents) + len(eval_offspring))
         #assert(set(combined_pop) <= set(parents).union(set(eval_offspring)))
         
-        for ind in combined_pop:
-            assert(ind in parents or ind in eval_offspring)
+        for ind_hash in combined_pop:
+            assert(ind_hash in parents or ind_hash in eval_offspring)
         
         this_gen_evo['Combined'] = util.get_gen_evo_dict_entry(combined_pop)
                 
-        for ind in combined_pop:
-            assert ind.fitness.valid, "{}".format(ind)
+        for ind_hash in combined_pop:
+            assert ind_hash.fitness.valid, "{}".format(ind_hash)
                 
         pop = algorithm['select'](combined_pop, parameters['Population size'])
         
@@ -195,11 +232,11 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
         #=======================================================================
         # Add this generation
         #=======================================================================
-        population_hashes = [ind.hash for ind in pop]
+        population_hashes = [ind_hash.hash for ind_hash in pop]
 
         gen_rows = [ds.Generation(gen,this_hash) for this_hash in population_hashes]
         
-        combined_pop_hashes = [ind.hash for ind in combined_pop]
+        combined_pop_hashes = [ind_hash.hash for ind_hash in combined_pop]
         assert(set(population_hashes) <= set(combined_pop_hashes))
 
         

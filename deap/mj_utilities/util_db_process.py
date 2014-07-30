@@ -489,6 +489,22 @@ def get_gen_stats(engine,genNum):
 
     return results
 
+
+def process_db_to_mat(path_db,path_output):
+    engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
+    meta = sa.MetaData(bind = engine)
+    meta.reflect()
+    
+    stats = get_all_gen_stats_df(meta)
+    
+    for name,df in stats.iteritems():
+        path = os.join(path_output,"{}.mat".format(name))
+        #path = r"c:\ExportDir\Mat\{}.mat".format(name)
+        #print(name,v)
+        #(frame,path,name = name)
+        write_frame_matlab(df,path,name)    
+    
+    
 def get_run_stats(engine):
     metadata = util_sa.get_metadata(engine)
     genTable = util_sa.get_table_object(metadata, "generations")
