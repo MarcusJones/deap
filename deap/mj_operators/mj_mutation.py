@@ -72,9 +72,9 @@ def mj_random_jump(individual, mapping, jumpsize, indpb, path_evolog):
     
     
     with open(path_evolog, 'a') as evolog:
-        
         print("{:15} [{}] {}".format(original_hash, "|".join(mutate_signature), mutated_ind.hash),file=evolog, )
-        #logging.debug()
+
+    del mutated_ind.fitness.values
     
     return mutated_ind
 

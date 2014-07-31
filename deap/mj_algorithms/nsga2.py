@@ -170,8 +170,6 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
 
         this_gen_evo['Mated offspring'] = util.get_gen_evo_dict_entry(offspring)
         
-        for ind_hash in offspring:
-            del ind_hash.fitness.values
 
         #=======================================================================
         #--- Mutate
@@ -186,10 +184,6 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
                                           jumpsize=parameters['Jump size'],
                                           path_evolog = settings['path_evolog'])
                 mutated_offspring.append(ind_hash)
-                
-
-        for ind_hash in mutated_offspring:
-            del ind_hash.fitness.values
 
         this_gen_evo['Mutated offspring'] = util.get_gen_evo_dict_entry(mutated_offspring)
             
