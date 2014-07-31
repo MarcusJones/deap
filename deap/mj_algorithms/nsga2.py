@@ -171,8 +171,10 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
                                                   path_evolog = settings['path_evolog'])
                     
                 offspring.extend([ind1,ind2])
-
+                
+        
         this_gen_evo['Mated offspring'] = util.get_gen_evo_dict_entry(offspring)
+        logging.debug("Crossover complete".format())
 
         #=======================================================================
         #--- Mutate
@@ -181,14 +183,15 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         with loggerDebug():
             mutated_offspring = list()
             for ind_hash in offspring:
-                ind_hash = operators['mutate'](ind_hash,
-                                          mapping,
-                                          indpb=parameters['Probability mutation'],
-                                          jumpsize=parameters['Jump size'],
-                                          path_evolog = settings['path_evolog'])
+                if random.random() <= parameters['Probability mutation']:
+                    ind_hash = operators['mutate'](ind_hash,
+                                              mapping = mapping,
+                                              parameters = parameters,
+                                              path_evolog = settings['path_evolog'])
                 mutated_offspring.append(ind_hash)
 
         this_gen_evo['Mutated offspring'] = util.get_gen_evo_dict_entry(mutated_offspring)
+        logging.debug("Mutation complete".format())
             
         #=======================================================================
         #--- Evaluate the individual_hashes

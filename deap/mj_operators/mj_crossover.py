@@ -54,18 +54,12 @@ def mj_list_flip(ind1, ind2, mapping, parameters, path_evolog):
     return(ind1,ind2)
 
 def cx_sim_binary_calc(ind1_val, ind2_val, xl, xu,eta):
-
-    
     
     x1 = min(ind1_val, ind2_val)
     x2 = max(ind1_val, ind2_val)
     rand = random.random()
     
 
-     
-    
-
-    
     
     beta = 1.0 + (2.0 * (x1 - xl) / (x2 - x1))
     alpha = 2.0 - beta**-(eta + 1)
@@ -121,11 +115,11 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, mapping, parameters, path_evolog):
        This implementation is similar to the one implemented in the 
        original NSGA-II C code presented by Deb.
     """
+    eta = parameters['Crowding degree']
     
     ind1_original_hash = ind1.hash
     ind2_original_hash = ind2.hash
-    eta = parameters['Crowding degree']
-    #print(ind1.chromosome)
+    
     size = len(ind1.chromosome)
     low = list()
     up = list()
@@ -136,12 +130,11 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, mapping, parameters, path_evolog):
         assert(allele.vtype == gene.vtype)     
         low_val = gene.variable_tuple[0].value
         low_val = float(low_val)
-        
-        
         low.append(low_val)
         up_val = gene.variable_tuple[-1].value
         up_val = float(up_val)
         up.append(up_val)
+        
     ind1_new_chromo = list()
     ind2_new_chromo = list()
     cx_signature = list()
@@ -154,12 +147,12 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, mapping, parameters, path_evolog):
         
         ind2_allele = ind2.chromosome[i]
         ind2_val = float(ind2_allele.value)
+        assert(this_gene.locus == ind1_allele.locus == ind2_allele.locus)
                 
         # Flip this allele only if probability threshold passed
-        if random.random() <= 0.5: # Formerly 0.5
+        if random.random() <= 0.5: # 0.5 in original 
             flg_cx = 'X'
 
-            assert(this_gene.locus == ind1_allele.locus == ind2_allele.locus)
             
             # If they are exact, do not flip
             if ind1_val != ind2_val:

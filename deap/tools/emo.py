@@ -126,6 +126,7 @@ def assignCrowdingDist(individuals):
     if len(individuals) == 0:
         return
    
+    # Distances are all set to 0 initially
     distances = [0.0] * len(individuals)
     crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
    
