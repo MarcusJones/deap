@@ -133,8 +133,11 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
 
     #---Start evolution
     for gen in range(start_gennum+1, start_gennum + parameters['Generations']):
-        this_gen_evo = dict()
         print("* GENERATION {:>5} ************************".format(gen))
+        with open(settings['path_evolog'], 'a') as evolog:
+            print("* GENERATION {:>5} ************************".format(gen), file=evolog)
+            
+        this_gen_evo = dict()
         
         crowds = [ind_hash.fitness.crowding_dist for ind_hash in pop]
         print("Mean crowding: {} Crowding distances {}".format(np.mean(crowds),crowds))
@@ -161,8 +164,10 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
             offspring = list()
             for ind1, ind2 in pairs:
                 if random.random() <= parameters['Probability crossover'] and ind1.hash != ind2.hash:
-                    ind1,ind2 = operators['mate'](ind1, ind2, 
+                    ind1,ind2 = operators['mate'](ind1, ind2,
+                                                  mapping = mapping ,
                                                   parameters = parameters,
+                                                  
                                                   path_evolog = settings['path_evolog'])
                     
                 offspring.extend([ind1,ind2])
@@ -189,9 +194,7 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         #--- Evaluate the individual_hashes
         #=======================================================================
         logging.debug("Evaluating generation {}".format(gen))
-        #eval_offspring = list()
         cloned_offspring = [ind_hash.clone() for ind_hash in mutated_offspring]
-        #eval_offspring, eval_count = evaluate_pop(cloned_offspring,session,Results,mapping,toolbox)
         eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,algorithm['evaluate'])
 
         for ind_hash in parents:

@@ -552,6 +552,27 @@ class Variable(DB_Base):
                               self.val_str, 
                               self.index, 
                               self.ordered)
+
+    def return_closest_allele(self,target_value):
+        
+        assert self.vtype == 'float'
+
+        # Get values as list of floats for comparison
+        possible_values = [float(val.value) for val in  self.variable_tuple]
+        # Get closest
+        closest = min(possible_values, key=lambda x:abs(x-target_value))
+        
+        # Get the index of this value and update variable index to match
+        closest_index= possible_values.index(closest)
+        self.index = closest_index
+        
+        return Allele(self.name, 
+              self.locus,
+                      self.vtype, 
+                      self.val_str, 
+                      self.index, 
+                      self.ordered)
+
          
     def return_random_allele(self):
         """

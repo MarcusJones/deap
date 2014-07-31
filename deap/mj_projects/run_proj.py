@@ -389,7 +389,7 @@ class allTests(unittest.TestCase):
 
     def setUp(self):
         print("**** TEST {} ****".format(whoami()))
-        curr_dir = os.path.dirname(os.path.realpath(__file__))
+        self.curr_dir = os.path.dirname(os.path.realpath(__file__))
         #self.path_book = os.path.abspath(curr_dir + r'\..\tests\testing_zdt1.xlsx')
         self.path_book = r'C:\TestProjectRoot\Run145\definition.xlsx'
         
@@ -397,12 +397,17 @@ class allTests(unittest.TestCase):
         #self.book = util_excel.ExcelBookRead2(self.path_book)            
         #print(self.book)
         
-    def test010_SimpleCreation(self):
+    def test010_testing_zdt1(self):
         print("**** TEST {} ****".format(whoami()))
+        path_book = os.path.abspath(self.curr_dir + r'\..\tests\testing_zdt1.xlsx')
+        run_project_def(path_book)
         
-        run_project_def(self.path_book)
+    def test020_nsga1_zdt1_Xbinary_Mbinary(self):
+        print("**** TEST {} ****".format(whoami()))
+        path_book = os.path.abspath(self.curr_dir + r'\..\tests\nsga1_zdt1_Xbinary_Mbinary.xlsx')
+        run_project_def(path_book)
         
-    def test020_Postprocess(self):
+    def test100_Postprocess(self):
         print("**** TEST {} ****".format(whoami()))
         path_sql = r'C:\TestProjectRoot\Run145\SQL\results.sql'
         path_mlab = r"C:\TestProjectRoot\Run145\Matlab"

@@ -24,7 +24,7 @@ def mj_random_jump(individual, mapping, jumpsize, indpb, path_evolog):
     :returns: individual: Individual with mutated chromosome and deleted fitness
     """        
 
-    jump_digits = len(str(123))
+    jump_digits = len(str(jumpsize)) + 1
     
     for allele in individual.chromosome:
         assert allele.vtype == 'float'
@@ -41,6 +41,8 @@ def mj_random_jump(individual, mapping, jumpsize, indpb, path_evolog):
 
     new_chromo = list()
 
+    assert(len(mapping.design_space.basis_set) == len(mutated_ind.chromosome)), "{}".format(mutated_ind)
+    
     for allele in mutated_ind.chromosome:
 
         gene = mapping.design_space.basis_set[allele.locus]

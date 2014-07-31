@@ -15,7 +15,7 @@ from decimal import *
 ######################################
 # GA Crossovers                      #
 ######################################
-def mj_list_flip(ind1, ind2, parameters, path_evolog):
+def mj_list_flip(ind1, ind2, mapping, parameters, path_evolog):
     """For the length of chromosome, flip each position between *ind1* and *ind2* with probability *indpb*
     :param ind1: First individual  
     :param ind2: Second individiual
@@ -50,12 +50,53 @@ def mj_list_flip(ind1, ind2, parameters, path_evolog):
     
     del ind1.fitness.values
     del ind2.fitness.values
-
     
     return(ind1,ind2)
 
+def cx_sim_binary_calc(ind1_val, ind2_val, xl, xu,eta):
 
-def mj_cxSimulatedBinaryBounded(ind1, ind2, settings, eta):
+    
+    
+    x1 = min(ind1_val, ind2_val)
+    x2 = max(ind1_val, ind2_val)
+    rand = random.random()
+    
+
+     
+    
+
+    
+    
+    beta = 1.0 + (2.0 * (x1 - xl) / (x2 - x1))
+    alpha = 2.0 - beta**-(eta + 1)
+    if rand <= 1.0 / alpha:
+        beta_q = (rand * alpha)**(1.0 / (eta + 1))
+    else:
+        beta_q = (1.0 / (2.0 - rand * alpha))**(1.0 / (eta + 1))
+    
+    c1 = 0.5 * (x1 + x2 - beta_q * (x2 - x1))
+    
+    beta = 1.0 + (2.0 * (xu - x2) / (x2 - x1))
+    alpha = 2.0 - beta**-(eta + 1)
+    if rand <= 1.0 / alpha:
+        beta_q = (rand * alpha)**(1.0 / (eta + 1))
+    else:
+        beta_q = (1.0 / (2.0 - rand * alpha))**(1.0 / (eta + 1))
+    c2 = 0.5 * (x1 + x2 + beta_q * (x2 - x1))
+    
+    c1 = min(max(c1, xl), xu)
+    c2 = min(max(c2, xl), xu)
+    
+    if random.random() <= 0.5:
+        ind1_new_val = c2
+        ind2_new_val = c1
+    else:
+        ind1_new_val = c1
+        ind2_new_val = c2
+
+    return ind1_new_val,ind2_new_val
+
+def mj_cxSimulatedBinaryBounded(ind1, ind2, mapping, parameters, path_evolog):
     
     """-Modifed from DEAP-
     Executes a simulated binary crossover that modify in-place the input
@@ -64,12 +105,12 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, settings, eta):
     
     :param ind1: The first individual participating in the crossover.
     :param ind2: The second individual participating in the crossover.
-    :param eta: Crowding degree of the crossover. A high eta will produce
+    :param eta: =parameters['Crowding degree']; Crowding degree of the crossover. A high eta will produce
                 children resembling to their parents, while a small eta will
                 produce solutions much more different.
-    :param low: A value or an :term:`python:sequence` of values that is the lower
+    :param low: =mapping; A value or an :term:`python:sequence` of values that is the lower
                 bound of the search space.
-    :param up: A value or an :term:`python:sequence` of values that is the upper
+    :param up: =mapping;A value or an :term:`python:sequence` of values that is the upper
                bound of the search space.
     :returns: A tuple of two individuals.
 
@@ -80,52 +121,77 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, settings, eta):
        This implementation is similar to the one implemented in the 
        original NSGA-II C code presented by Deb.
     """
-    size = min(len(ind1), len(ind2))
-    if not isinstance(low, Sequence):
-        low = repeat(low, size)
-    elif len(low) < size:
-        raise IndexError("low must be at least the size of the shorter individual: %d < %d" % (len(low), size))
-    if not isinstance(up, Sequence):
-        up = repeat(up, size)
-    elif len(up) < size:
-        raise IndexError("up must be at least the size of the shorter individual: %d < %d" % (len(up), size))
     
+    ind1_original_hash = ind1.hash
+    ind2_original_hash = ind2.hash
+    eta = parameters['Crowding degree']
+    #print(ind1.chromosome)
+    size = len(ind1.chromosome)
+    low = list()
+    up = list()
+    for allele, gene in zip(ind1.chromosome, mapping.design_space.basis_set):
+        assert(gene.vtype == 'float')
+        assert(allele.name == gene.name )
+        assert(allele.locus ==gene.locus)
+        assert(allele.vtype == gene.vtype)     
+        low_val = gene.variable_tuple[0].value
+        low_val = float(low_val)
+        
+        
+        low.append(low_val)
+        up_val = gene.variable_tuple[-1].value
+        up_val = float(up_val)
+        up.append(up_val)
+    ind1_new_chromo = list()
+    ind2_new_chromo = list()
+    cx_signature = list()
     for i, xl, xu in zip(xrange(size), low, up):
-        if random.random() <= 0.5:
-            # This epsilon should probably be changed for 0 since 
-            # floating point arithmetic in Python is safer
-            if abs(ind1[i] - ind2[i]) > 1e-14: 
-                x1 = min(ind1[i], ind2[i])
-                x2 = max(ind1[i], ind2[i])
-                rand = random.random()
+        flg_cx = '0'
+        this_gene = mapping.design_space.basis_set[i]
+        
+        ind1_allele = ind1.chromosome[i]
+        ind1_val = float(ind1_allele.value)
+        
+        ind2_allele = ind2.chromosome[i]
+        ind2_val = float(ind2_allele.value)
                 
-                beta = 1.0 + (2.0 * (x1 - xl) / (x2 - x1))
-                alpha = 2.0 - beta**-(eta + 1)
-                if rand <= 1.0 / alpha:
-                    beta_q = (rand * alpha)**(1.0 / (eta + 1))
-                else:
-                    beta_q = (1.0 / (2.0 - rand * alpha))**(1.0 / (eta + 1))
-                
-                c1 = 0.5 * (x1 + x2 - beta_q * (x2 - x1))
-                
-                beta = 1.0 + (2.0 * (xu - x2) / (x2 - x1))
-                alpha = 2.0 - beta**-(eta + 1)
-                if rand <= 1.0 / alpha:
-                    beta_q = (rand * alpha)**(1.0 / (eta + 1))
-                else:
-                    beta_q = (1.0 / (2.0 - rand * alpha))**(1.0 / (eta + 1))
-                c2 = 0.5 * (x1 + x2 + beta_q * (x2 - x1))
-                
-                c1 = min(max(c1, xl), xu)
-                c2 = min(max(c2, xl), xu)
-                
-                if random.random() <= 0.5:
-                    ind1[i] = c2
-                    ind2[i] = c1
-                else:
-                    ind1[i] = c1
-                    ind2[i] = c2
+        # Flip this allele only if probability threshold passed
+        if random.random() <= 0.5: # Formerly 0.5
+            flg_cx = 'X'
+
+            assert(this_gene.locus == ind1_allele.locus == ind2_allele.locus)
+            
+            # If they are exact, do not flip
+            if ind1_val != ind2_val:
+                # Do the sim binary cx calculation here
+                ind1_new_val, ind2_new_val = cx_sim_binary_calc(ind1_val, ind2_val, xl, xu,eta)
+                    
+                ind1_new_chromo.append(this_gene.return_closest_allele(ind1_new_val))
+                ind2_new_chromo.append(this_gene.return_closest_allele(ind2_new_val))
+            else: 
+                ind1_new_chromo.append(ind1_allele)
+                ind2_new_chromo.append(ind2_allele)
+                            
+        # Just append the original allele to the chromosome if there is no flip on this allele
+        else:
+            ind1_new_chromo.append(ind1_allele)
+            ind2_new_chromo.append(ind2_allele)
+        
+        cx_signature.append(flg_cx)
     
+    ind1.chromosome = ind1_new_chromo
+    ind2.chromosome = ind2_new_chromo
+ 
+    
+    del ind1.fitness.values
+    del ind2.fitness.values
+
+    with open(path_evolog, 'a') as evolog:
+        print("Crossover; {:>15} x {:<15} [{}] -> {:>15}, {:<15}".format(ind1_original_hash, ind2_original_hash, "".join(cx_signature), ind1.hash, ind2.hash, ), file=evolog)
+
+    assert(len(mapping.design_space.basis_set) == len(ind1.chromosome)), "{}".format(ind1)
+    assert(len(mapping.design_space.basis_set) == len(ind2.chromosome)), "{}".format(ind2)
+
     return ind1, ind2   
 
 
@@ -135,4 +201,4 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, settings, eta):
 __all__ = []
 
 # Deprecated functions
-__all__.extend(['mj_list_flip'])
+__all__.extend(['mj_list_flip', 'mj_cxSimulatedBinaryBounded'])
