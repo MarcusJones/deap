@@ -59,7 +59,7 @@ from deap import base
 from deap import creator
 from deap import tools
 
-def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
+def nsga2(settings, algorithm, parameters, operators, mapping, session, Results):
     with open(settings['path_evolog'], 'w+') as evolog:
         print("Start log", file=evolog)
 
@@ -69,64 +69,57 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
     
     last_gen = session.query(ds.Generation).order_by(ds.Generation.id.desc()).first()
     
+    
+    
+    
     #---Retrieve a population
     if last_gen:
-        gennum = last_gen.gen
-        print(gennum)
-        individual_hashes = session.query(ds.Generation.individual).filter(ds.Generation.gen == gennum).all()
+        logging.debug("Last generation found in DB: {}".format(last_gen.gen))        
+        start_gennum = last_gen.gen
+        #print(start_gennum)
+        individual_hashes = session.query(ds.Generation.individual).filter(ds.Generation.gen == start_gennum).all()
         individual_hashes = [ind_hash[0] for ind_hash in individual_hashes]
+        pop = list()
         for ind_hash in individual_hashes:
             result = session.query(Results).filter(Results.hash == ind_hash).one()
-            print(result)
-            
-            print(dir(result))
             this_chromosome = list()
             for var in mapping.design_space.basis_set:
                 
                 index = getattr(result, "var_c_{}".format(var.name))
-                var.index = index
-                #print(var)
+                var.index = index - 1
                 this_chromosome.append(var.return_allele())
-                #var.index = 
-            print(this_chromosome)
-        raise
 
-        print(var.index)
-        var.index = 20
+            fit_vals = list()
+            for name in mapping.objective_space.objective_names:
+                fit= getattr(result, "obj_c_{}".format(name))
+                fit_vals.append(fit)
+
+            this_individual = ds.Individual2(this_chromosome,mapping.fitness())
+            this_individual.fitness.setValues(fit_vals)
+            #print(this_individual)
+            pop.append(this_individual)
+        logging.debug("Retrieved {} individuals from generation {}".format(len(pop),start_gennum))
         
-        #print()
-        #pop = mapping.get_random_population(1)
-        #print(pop[0])
-        #ds.Allele(self, name, locus, vtype, value, index, ordered)
-        
-        #def return_allele(self):
-#         return Allele(self.name, 
-#                       self.locus,
-#                               self.vtype, 
-#                               self.val_str, 
-#                               self.index, 
-#                               self.ordered)
-        
-    #---Create a new population    
     else: 
         
         #===========================================================================
         # First generation    
         #===========================================================================
+        logging.debug("Initializing new population".format())        
         
         pop = mapping.get_random_population(parameters['Population size'])
     
         DB_Base.metadata.create_all(engine)
         session.commit()
-        gennum = 0
-    raise
-
+        start_gennum = 0
+    
+        
     #---Evaluate first pop
-    print("* GENERATION {:>5} ************************".format(gennum))
+    print("* GENERATION {:>5} ************************".format(start_gennum))
     
     pop, eval_count = util.evaluate_pop(pop,session,Results,mapping,algorithm['evaluate'])
 
-    gen_rows = [ds.Generation(0,ind_hash.hash) for ind_hash in pop]
+    gen_rows = [ds.Generation(start_gennum,ind_hash.hash) for ind_hash in pop]
     session.add_all(gen_rows)
     
     # Selection
@@ -138,9 +131,8 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
     
     session.commit()
 
-
     #---Start evolution
-    for gen in range(gennum+1, parameters['Generations']):
+    for gen in range(start_gennum+1, start_gennum + parameters['Generations']):
         this_gen_evo = dict()
         print("* GENERATION {:>5} ************************".format(gen))
         
@@ -152,7 +144,6 @@ def nsga2(settings, algorithm, parameters,operators,mapping, session, Results):
         #=======================================================================
         #--- Select the parents
         #=======================================================================
-        
         logging.debug("Selecting generation {}".format(gen))
         parents = operators['select'](pop, len(pop))
         cloned_parents = [ind_hash.clone() for ind_hash in parents]

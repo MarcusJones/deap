@@ -390,8 +390,8 @@ class allTests(unittest.TestCase):
     def setUp(self):
         print("**** TEST {} ****".format(whoami()))
         curr_dir = os.path.dirname(os.path.realpath(__file__))
-        self.path_book = os.path.abspath(curr_dir + r'\..\tests\testing_zdt1.xlsx')
-        self.path_book = r'C:\TestProjectRoot\Run139\definition.xlsx'
+        #self.path_book = os.path.abspath(curr_dir + r'\..\tests\testing_zdt1.xlsx')
+        self.path_book = r'C:\TestProjectRoot\Run145\definition.xlsx'
         
         
         #self.book = util_excel.ExcelBookRead2(self.path_book)            
@@ -401,6 +401,13 @@ class allTests(unittest.TestCase):
         print("**** TEST {} ****".format(whoami()))
         
         run_project_def(self.path_book)
+        
+    def test020_Postprocess(self):
+        print("**** TEST {} ****".format(whoami()))
+        path_sql = r'C:\TestProjectRoot\Run145\SQL\results.sql'
+        path_mlab = r"C:\TestProjectRoot\Run145\Matlab"
+        util_proc.process_db_to_mat(path_sql,path_mlab)
+
 #===============================================================================
 # Main
 #===============================================================================

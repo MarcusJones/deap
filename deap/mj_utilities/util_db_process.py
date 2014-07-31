@@ -163,6 +163,8 @@ def get_generations_list(meta):
 def get_all_gen_stats_df(meta):
     """Loop over all generations, return summary stats DF
     """
+    logging.debug("Calculating statistics".format())
+    
     stats = dict()
     
     gennums = get_generations_list(meta)
@@ -184,6 +186,7 @@ def get_all_gen_stats_df(meta):
     stats['std'] = pd.concat(df_std, axis = 1).T
     stats['min'] = pd.concat(df_min, axis = 1).T
     stats['max'] = pd.concat(df_max, axis = 1).T
+
     
     return(stats)
 
@@ -206,6 +209,7 @@ def get_one_gen_stats_df(meta,gennum):
     
     df = pd.DataFrame(data=rows, columns=col_names)
     df = df[obj_cols]
+    logging.debug("Statistics for generation {}".format(gennum))
     return df
 
 
@@ -330,7 +334,9 @@ def get_generations_Ospace_df(meta):
         df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
     
     df.rename(columns={'Generations_individual'.format(): 'individual'}, inplace=True)
-
+    
+    logging.debug("Generations table returned as frame")
+    
     return df
 
 
@@ -491,18 +497,31 @@ def get_gen_stats(engine,genNum):
 
 
 def process_db_to_mat(path_db,path_output):
+    path_db = r"sqlite:///" + path_db
     engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
     meta = sa.MetaData(bind = engine)
     meta.reflect()
     
+    
+    # All generations and results
+    
+    df = get_generations_Ospace_df(meta)
+    name = 'generations'
+    path = os.path.join(path_output,"{}.mat".format(name))
+    write_frame_matlab(df,path,name)
+
+    
     stats = get_all_gen_stats_df(meta)
     
+    # Statistics frame
     for name,df in stats.iteritems():
-        path = os.join(path_output,"{}.mat".format(name))
+        path = os.path.join(path_output,"{}.mat".format(name))
         #path = r"c:\ExportDir\Mat\{}.mat".format(name)
         #print(name,v)
         #(frame,path,name = name)
         write_frame_matlab(df,path,name)    
+    
+    
     
     
 def get_run_stats(engine):
