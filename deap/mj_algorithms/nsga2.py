@@ -155,7 +155,6 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         #=======================================================================
         logging.debug("Varying generation {}".format(gen))
         
-        
         pairs = zip(cloned_parents[::2], cloned_parents[1::2])
         
         with loggerCritical():
@@ -163,13 +162,12 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
             for ind1, ind2 in pairs:
                 if random.random() <= parameters['Probability crossover'] and ind1.hash != ind2.hash:
                     ind1,ind2 = operators['mate'](ind1, ind2, 
-                                                  indpb = parameters['Probability flip allele'],
+                                                  parameters = parameters,
                                                   path_evolog = settings['path_evolog'])
                     
                 offspring.extend([ind1,ind2])
 
         this_gen_evo['Mated offspring'] = util.get_gen_evo_dict_entry(offspring)
-        
 
         #=======================================================================
         #--- Mutate
