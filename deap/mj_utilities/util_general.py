@@ -19,7 +19,7 @@ from __future__ import print_function
 import logging.config
 
 from UtilityLogger import loggerCritical,loggerDebug
-
+import utility_executor as util_exec
 import deap.design_space as ds
 
 #===============================================================================
@@ -248,9 +248,13 @@ def evaluate_pop_parallel(pop,session,Results,mapping,evaluate_func,settings):
                 with loggerDebug():
                     ind = evaluate_func(settings,ind)
                     pool.append(ind)
-            
-        for ind in pool:
-            print(ind.directory,ind.cmd)
+        
+        
+        commands = [ind.cmd for ind in pool]
+        
+        #for ind in pool:
+        #    print(ind.directory,ind.cmd)
+        util_exec.execute_parallel(commands)
         raise
         eval_count += 1
         res = ds.convert_individual_DB(Results,ind)
