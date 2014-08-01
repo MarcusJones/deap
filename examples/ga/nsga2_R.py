@@ -29,7 +29,7 @@ from deap import creator
 from deap import tools
 import logging
 
-from deap.mj_config.deapconfig import *
+#from deap.mj_config.deapconfig import *
 creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
 creator.create("Individual", array.array, typecode='d', fitness=creator.FitnessMin)
 
@@ -61,11 +61,12 @@ toolbox.register("mutate", tools.mutPolynomialBounded, low=BOUND_LOW, up=BOUND_U
 toolbox.register("select", tools.selNSGA2revised)
 
 def main(seed=None):
-    #logging.basicConfig(level=logging.DEBUG)
-    import logging.config
-    logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
+    logging.basicConfig(level=logging.DEBUG)
+    #import logging.config
+    #logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
     myLogger = logging.getLogger()
     myLogger.setLevel("DEBUG")
+    
     random.seed(seed)
 
     NGEN = 250
