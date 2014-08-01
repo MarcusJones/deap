@@ -44,6 +44,7 @@ BOUND_LOW, BOUND_UP = 0.0, 1.0
 
 # Functions zdt1, zdt2, zdt3 have 30 dimensions, zdt4 and zdt6 have 10
 NDIM = 30
+NDIM = 3
 
 def uniform(low, up, size=None):
     try:
@@ -71,7 +72,7 @@ def main(seed=None):
 
     NGEN = 250
     #MU = 16
-    MU = 100
+    MU = 16
     CXPB = 0.9
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)

@@ -274,6 +274,7 @@ def UFTournSelection(individuals):
     Fset = set(fit_dict.keys())
     assert(len(Fset) == len(fit_dict.keys()))
     
+
     if len(Fset) == 1:
         return individuals
         
@@ -283,23 +284,35 @@ def UFTournSelection(individuals):
     #S_chosen = set()
     
     while len(S_chosen) != len(individuals):
-        #print(len(S_chosen),len(individuals))
+        print(len(S_chosen),len(individuals))
         k = min(2*(len(individuals) - len(S_chosen)), len(Fset))
         #Sample 
         if k % 2 != 0:
             k = k -1
         
+        #G_fitnesses = list()
+        #for i in range(k):
+        #    G_fitnesses = random.sample(Fset,1)[0]
+        #    G_fitnesses.append(this_fit)
+        #    Fset.remove(this_fit)
+        
         G_fitnesses = random.sample(Fset,k)
         G_fitness_pairs = zip(*[iter(G_fitnesses)]*2)
+        
+        print(G_fitness_pairs)
+        
         for pair in G_fitness_pairs:
+            print("{}, {}".format(*pair))
             
             p = dominant(pair)
-            #print("{} dominates in pair {}".format(p,pair))
-        
+            
+            assert fit_dict[p], p 
+            #selected_ind_index = random.randrange(len(fit_dict[p]))
+            #print("Removing index {} from length {}".format(selected_ind_index,len(fit_dict[p])))
+            #selected_ind = fit_dict[p].pop(selected_ind_index)
+            #print(selected_ind)
             selected_ind = random.sample(fit_dict[p],1)[0]
-            #print("Selected:{}".format(selected_ind.fitness))
-
-            #S_chosen.add(selected_ind)
+            
             S_chosen.append(selected_ind)
          
     return S_chosen
