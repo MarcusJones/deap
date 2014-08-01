@@ -1,10 +1,13 @@
 
-import random
-from math import sin, cos, pi, exp, e, sqrt
-from operator import mul
-from functools import reduce
-from decimal import Decimal
+#import random
+#from math import sin, cos, pi, exp, e, sqrt
+#from operator import mul
+#from functools import reduce
+#from decimal import Decimal
 import logging
+import os
+import shutil
+import utility_file as util_file
 
 def mj_zdt1_decimal(settings,individual):
     """ZDT1 multiobjective function.
@@ -57,28 +60,47 @@ def mj_zdt1_decimal(settings,individual):
 
 
 def mj_zdt1_decimal_exe(settings,individual):
-    raise
-    """ZDT1 multiobjective function.
+    #===========================================================================
+    # Check paths
+    #===========================================================================
+    assert os.path.exists(settings['path_exe']), "EXE does not exist"
+    assert os.path.exists(settings['path_template']), "Template does not exist"
     
-    :math:`g(\\mathbf{x}) = 1 + \\frac{9}{n-1}\\sum_{i=2}^n x_i`
+    for k,v, in settings.iteritems():
+        print("{:>30} : {:<100} {}".format(k,v, type(v)))
     
-    :math:`f_{\\text{ZDT1}1}(\\mathbf{x}) = x_1`
+    this_ind_sub_dir = os.path.join(settings['run_full_path'],"individuals","{}".format(individual.hash))
+    #print(this_ind_sub_dir)
+    os.makedirs(this_ind_sub_dir)
     
-    :math:`f_{\\text{ZDT1}2}(\\mathbf{x}) = g(\\mathbf{x})\\left[1 - \\sqrt{\\frac{x_1}{g(\\mathbf{x})}}\\right]`
-    """
-    values = list(individual[:])
-    try:
-        values = [float(val.value) for val in values]
-    except AttributeError:
-        pass
-
-    g  = 1.0 + 9.0*sum(values[1:])/(len(values)-1)
-    f1 = values[0]
-    f2 = g * (1 - sqrt(f1/g))
+    path_input_file = os.path.join(this_ind_sub_dir,'input.txt')
+    path_output_file = os.path.join(this_ind_sub_dir,'output.txt')
     
-    individual.fitness.setValues((f1, f2))
-
+    shutil.copy(settings['path_template'], path_input_file)
+    #raise 
+    exe_str = "{} -i {} -o {}".format(settings['path_exe'], path_input_file, path_output_file)
     
-    logging.debug("Evaluated {} -> {}".format(values, individual.fitness))
+    #===========================================================================
+    # Apply changes
+    #===========================================================================
+    input_file_obj = util_file.FileObject(path_input_file)
+    #print(individual)
     
+    replacements = list()
+    for allele in individual.chromosome:
+        find_val = "{}{}".format(settings['replace_sigil'],allele.name)
+        repl_val = allele.value
+        replacements.append([find_val,repl_val])
+        
+    print(replacements)
+    
+    input_file_obj.makeReplacements(replacements)
+        #print(allele.name, )
+        #print(allele) 
+    input_file_obj.writeFile(input_file_obj.filePath)
+    
+    individual.directory = this_ind_sub_dir
+    individual.cmd = exe_str
+    #individual.sub_dir = os.path.join(settings['run_full_path'],"individuals","{}".format(individual.hash))
+    #print(individual.sub_dir)
     return individual

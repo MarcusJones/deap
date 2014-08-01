@@ -70,8 +70,6 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
     last_gen = session.query(ds.Generation).order_by(ds.Generation.id.desc()).first()
     
     
-    
-    
     #---Retrieve a population
     if last_gen:
         logging.debug("Last generation found in DB: {}".format(last_gen.gen))        
@@ -117,8 +115,10 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
     #---Evaluate first pop
     print("* GENERATION {:>5} ************************".format(start_gennum))
     
-    pop, eval_count = util.evaluate_pop(pop,session,Results,mapping,algorithm['evaluate'],settings)
-
+    pop, eval_count =  algorithm['evaluator'](pop,session,Results,mapping,algorithm['evaluate'],settings)
+    
+    #pop, eval_count = util.evaluate_pop(pop,session,Results,mapping,algorithm['evaluate'],settings)
+    
     gen_rows = [ds.Generation(start_gennum,ind_hash.hash) for ind_hash in pop]
     session.add_all(gen_rows)
     
@@ -198,7 +198,8 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         #=======================================================================
         logging.debug("Evaluating generation {}".format(gen))
         cloned_offspring = [ind_hash.clone() for ind_hash in mutated_offspring]
-        eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,algorithm['evaluate'],settings)
+        eval_offspring, eval_count = algorithm['evaluator'](cloned_offspring,session,Results,mapping,algorithm['evaluate'],settings)
+        #eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,algorithm['evaluate'],settings)
 
         for ind_hash in parents:
             assert ind_hash.fitness.valid, "{}".format(ind_hash)

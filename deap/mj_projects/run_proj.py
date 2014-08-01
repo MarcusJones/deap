@@ -97,7 +97,7 @@ def build_structure(settings):
         path_run = os.path.abspath(path_run)
         assert not os.path.exists(path_run), "{} exists".format(path_run)
         os.makedirs(path_run)
-         
+        settings['run_full_path'] = path_run
     else: 
         raise
 
@@ -178,7 +178,7 @@ def get_algorithm(book):
     logging.debug("Algorithm loaded:")
     for item,function in algorithm_def.iteritems():
         logging.debug("{:>20} - {}".format(item,function.__name__))
-        
+
     return algorithm_def
 
 
