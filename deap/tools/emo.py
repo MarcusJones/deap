@@ -210,7 +210,7 @@ details on the NSGA-II operator see [Deb2002]_.
 non-dominated sorting genetic algorithm for multi-objective
 optimization: NSGA-II", 2002.
 """
-    logging.debug("NSGAIIR with {} individuals, k={}".format(len(individuals),k))
+    #logging.debug("NSGAIIR with {} individuals, k={}".format(len(individuals),k))
     if nd == 'standard':
         pareto_fronts = sortNondominated(individuals, k)
     elif nd == 'log':
@@ -266,25 +266,24 @@ def UFTournSelection(individuals):
     fit_dict = defaultdict(list)
     for fit, ind in fitnesses_individuals:
         fit_dict[fit].append(ind)
-        
-    for k,v in fit_dict.iteritems():
-        print("{:40} -> {} individuals".format(k,len(v)))
+    
+    # Print the individuals dict
+    #for k,v in fit_dict.iteritems():
+    #    print("{:40} -> {} individuals".format(k,len(v)))
     
     Fset = set(fit_dict.keys())
     assert(len(Fset) == len(fit_dict.keys()))
     
-    #raise
-    
     if len(Fset) == 1:
         return individuals
         
-    print("Out of {} individuals in pop {} are unique".format(len(individuals),len(Fset)))
+    #print("Out of {} individuals in pop {} are unique".format(len(individuals),len(Fset)))
 
     S_chosen = list()
     #S_chosen = set()
     
     while len(S_chosen) != len(individuals):
-        print(len(S_chosen),len(individuals))
+        #print(len(S_chosen),len(individuals))
         k = min(2*(len(individuals) - len(S_chosen)), len(Fset))
         #Sample 
         if k % 2 != 0:
@@ -297,32 +296,13 @@ def UFTournSelection(individuals):
             p = dominant(pair)
             #print("{} dominates in pair {}".format(p,pair))
         
-        # With dominant fitness,
-        
-            #assert p not in S_chosen
             selected_ind = random.sample(fit_dict[p],1)[0]
             #print("Selected:{}".format(selected_ind.fitness))
+
             #S_chosen.add(selected_ind)
             S_chosen.append(selected_ind)
          
-    print(S_chosen)
-    print(len(S_chosen))
-    raise
-    
-    individuals_1 = random.sample(individuals, len(individuals))
-    individuals_2 = random.sample(individuals, len(individuals))
-    
-    S_chosen = []
-    for i in xrange(0, k, 4):
-        chosen.append(tourn(individuals_1[i],   individuals_1[i+1]))
-        chosen.append(tourn(individuals_1[i+2], individuals_1[i+3]))
-        chosen.append(tourn(individuals_2[i],   individuals_2[i+1]))
-        chosen.append(tourn(individuals_2[i+2], individuals_2[i+3]))
-    
-    
-    assert len(chosen) == len(set(chosen))
-     
-    return chosen
+    return S_chosen
 
 
 #######################################
