@@ -314,7 +314,8 @@ def UFTournSelection(individuals):
             selected_ind = random.sample(fit_dict[p],1)[0]
             
             S_chosen.append(selected_ind)
-         
+    
+    print("Returning {} from {}".format(len(S_chosen),len(individuals)))
     return S_chosen
 
 

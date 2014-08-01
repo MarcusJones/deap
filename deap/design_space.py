@@ -856,7 +856,7 @@ class Individual2(list):
         #return hash(tuple(zip(self[:])))
 
     def __eq__(self,other):
-        if self.hash() == other.hash():
+        if self.hash == other.hash:
             return True
         return False
 

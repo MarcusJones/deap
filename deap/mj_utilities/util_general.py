@@ -90,7 +90,7 @@ def printhashes(pop, msg=""):
     hash_list = [ind.hash for ind in pop]
     print("{:>20} - {}".format(msg,sorted(hash_list)))
   
-def evaluate_pop(pop,session,Results,mapping,evaluate_func):
+def evaluate_pop(pop,session,Results,mapping,evaluate_func,settings):
     """evaluate_pop() performs a filter to ensure that each individual is only evaluated ONCE during the entire evolution
     evaluate_pop calls toolbox.evaluate(individual)
     - Entire population will be stored in final_pop list
@@ -142,22 +142,25 @@ def evaluate_pop(pop,session,Results,mapping,evaluate_func):
         while eval_pop:
             ind = eval_pop.pop()
             # Check if it has been recently evaluated
-            try: 
+            if ind.hash in newly_evald.keys():
                 logging.debug("Recently evaluated: {} ".format(newly_evald[ind.hash]))
                 copy_ind = newly_evald[ind.hash]
                 assert(copy_ind.fitness.valid)
                 final_pop.append(copy_ind)
                 # Skip to next 
                 continue
-            except KeyError:
+            else:
+                # Individual not recently eval'd (not in dict)
                 # This individual needs to be evaluated
                 #pass
             
                 # Do a fresh evaluation
                 #with loggerCritical():
-                with loggerCritical():
-                    ind = evaluate_func(ind)
+                with loggerDebug():
+                    logging.debug("Fresh eval: {} ".format(ind.hash))
+                    ind = evaluate_func(settings,ind)
                     logging.debug("Newly evaluated {}".format(ind.hash))
+                    
                 assert(ind.fitness.valid)
                 eval_count += 1
                 res = ds.convert_individual_DB(Results,ind)
