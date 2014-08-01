@@ -13,8 +13,8 @@ import logging
 #---Non-Dominated Sorting   (NSGA-II)  #
 ######################################
 
-__all__ = ['selNSGA2',  'selSPEA2', 'sortNondominated', 'sortLogNondominated',
-           'selTournamentDCD']
+__all__ = ['selNSGA2', 'selNSGA2revised', 'selSPEA2', 'sortNondominated', 'sortLogNondominated',
+           'selTournamentDCD', 'UFTournSelection']
 
 def selNSGA2(individuals, k):
     """Apply NSGA-II selection operator on the *individuals*. Usually, the
@@ -190,7 +190,139 @@ def selTournamentDCD(individuals, k):
 
     return chosen
 
+#===============================================================================
+#---NSGAII-R from 'Revisiting the the NSGAII Crowding Distance Computation
+#===============================================================================
 
+def selNSGA2revised(individuals, k, nd='standard'):
+    """Apply NSGA-II selection operator on the *individuals*. Usually, the
+size of *individuals* will be larger than *k* because any individual
+present in *individuals* will appear in the returned list at most once.
+Having the size of *individuals* equals to *k* will have no effect other
+than sorting the population according to their front rank. The
+list returned contains references to the input *individuals*. For more
+details on the NSGA-II operator see [Deb2002]_.
+:param individuals: A list of individuals to select from.
+:param k: The number of individuals to select.
+:param nd: Specify the non-dominated algorithm to use: 'standard' or 'log'.
+:returns: A list of selected individuals.
+.. [Deb2002] Deb, Pratab, Agarwal, and Meyarivan, "A fast elitist
+non-dominated sorting genetic algorithm for multi-objective
+optimization: NSGA-II", 2002.
+"""
+    logging.debug("NSGAIIR with {} individuals, k={}".format(len(individuals),k))
+    if nd == 'standard':
+        pareto_fronts = sortNondominated(individuals, k)
+    elif nd == 'log':
+        pareto_fronts = sortLogNondominated(individuals, k)
+    else:
+        raise Exception('selNSGA2: The choice of non-dominated sorting '
+                        'method "{0}" is invalid.'.format(nd))
+    for front in pareto_fronts:
+        assignCrowdingDist(front)
+    chosen = list(chain(*pareto_fronts[:-1]))
+    k = k - len(chosen)
+    if k > 0:
+        sorted_front = sorted(pareto_fronts[-1], key=attrgetter("fitness.crowding_dist"), reverse=True)
+        chosen.extend(sorted_front[:k])
+        
+    return chosen
+
+def UFTournSelection(individuals):
+    """
+    Tournament selection as described in [Fortin2013]_
+   
+    :param individuals: A list of individuals to select from.
+    :returns: A list of selected individuals, size determined by XXX.
+   
+    .. [Fortin2013] Fortin,Parizeau "Revisiting the NSGA-II 
+    Crowding-Distance Computation", GECCO 2013.
+    """
+    def dominant(pair):
+        # Crowding distance dominance comparison
+        # Uses fitness directly instead of indirectly through individuals
+        # Refactored slightly
+        fit1 = pair[0]
+        fit2 = pair[1]
+        
+        # If better ranking, return winner
+        if fit1.dominates(fit2):
+            return fit1
+        elif fit2.dominates(fit1):
+            return fit2
+        
+        # If same ranking, return better crowding distance
+        if fit1.crowding_dist < fit2.crowding_dist:
+            return fit2
+        elif fit1.crowding_dist > fit2.crowding_dist:
+            return fit1
+
+        # Otherwise, chose one at random
+        return random.sample([fit1,fit2],1)[0]
+    
+    fitnesses_individuals = [(ind.fitness, ind) for ind in individuals]   
+    
+    # Organize individuals by their corresponding fitnesses
+    fit_dict = defaultdict(list)
+    for fit, ind in fitnesses_individuals:
+        fit_dict[fit].append(ind)
+        
+    for k,v in fit_dict.iteritems():
+        print("{:40} -> {} individuals".format(k,len(v)))
+    
+    Fset = set(fit_dict.keys())
+    assert(len(Fset) == len(fit_dict.keys()))
+    
+    #raise
+    
+    if len(Fset) == 1:
+        return individuals
+        
+    print("Out of {} individuals in pop {} are unique".format(len(individuals),len(Fset)))
+
+    S_chosen = list()
+    #S_chosen = set()
+    
+    while len(S_chosen) != len(individuals):
+        print(len(S_chosen),len(individuals))
+        k = min(2*(len(individuals) - len(S_chosen)), len(Fset))
+        #Sample 
+        if k % 2 != 0:
+            k = k -1
+        
+        G_fitnesses = random.sample(Fset,k)
+        G_fitness_pairs = zip(*[iter(G_fitnesses)]*2)
+        for pair in G_fitness_pairs:
+            
+            p = dominant(pair)
+            #print("{} dominates in pair {}".format(p,pair))
+        
+        # With dominant fitness,
+        
+            #assert p not in S_chosen
+            selected_ind = random.sample(fit_dict[p],1)[0]
+            #print("Selected:{}".format(selected_ind.fitness))
+            #S_chosen.add(selected_ind)
+            S_chosen.append(selected_ind)
+         
+    print(S_chosen)
+    print(len(S_chosen))
+    raise
+    
+    individuals_1 = random.sample(individuals, len(individuals))
+    individuals_2 = random.sample(individuals, len(individuals))
+    
+    S_chosen = []
+    for i in xrange(0, k, 4):
+        chosen.append(tourn(individuals_1[i],   individuals_1[i+1]))
+        chosen.append(tourn(individuals_1[i+2], individuals_1[i+3]))
+        chosen.append(tourn(individuals_2[i],   individuals_2[i+1]))
+        chosen.append(tourn(individuals_2[i+2], individuals_2[i+3]))
+    
+    
+    assert len(chosen) == len(set(chosen))
+     
+    return chosen
 
 
 #######################################
