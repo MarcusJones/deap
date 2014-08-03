@@ -119,7 +119,7 @@ def convert_individual_DB(ResultsClass,ind):
 
 
 
-def generate_results_individuals_table(mapping):
+def generate_individuals_table(mapping):
     columns = list()
     columns.append(sa.Column('hash', sa.Integer, primary_key=True))
     columns.append(sa.Column('start', sa.DateTime))

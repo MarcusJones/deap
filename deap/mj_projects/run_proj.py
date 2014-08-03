@@ -363,7 +363,7 @@ def run_project_def(path_book):
     #---Mapping
     #===========================================================================
     mapping = ds.Mapping(design_space, objective_space)
-    res_ORM_table = ds.generate_results_individuals_table(mapping)
+    res_ORM_table = ds.generate_individuals_table(mapping)
     Results = ds.generate_ORM_individual(mapping)
     sa.orm.mapper(Results, res_ORM_table) 
     
