@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import utility_file as util_file
+from math import sqrt
 
 def mj_zdt1_decimal(settings,individual):
     """ZDT1 multiobjective function.

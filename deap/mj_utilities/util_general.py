@@ -89,7 +89,56 @@ def print_gen_dict(gd,gennum, path_evolog):
 def printhashes(pop, msg=""):
     hash_list = [ind.hash for ind in pop]
     print("{:>20} - {}".format(msg,sorted(hash_list)))
-  
+
+
+def filter_pop(pop,session,Results,mapping):
+    """Divides pop into two;
+    :returns: final_pop - Individuals already in Database, called back into existence by ORM
+    :returns: eval_pop - Individuals not in Database
+    """
+    
+    # final_pop is the resulting returned population
+    final_pop = list()
+    
+    # eval_pop is the population which remains to be evaluated
+    eval_pop = list()
+    
+    #===========================================================================
+    # Get all matching from DB
+    #===========================================================================
+    pop_ids = [ind.hash for ind in pop]
+    qry = session.query(Results).filter(Results.hash.in_(( pop_ids )))
+    res = qry.all()
+    
+    # Assemble results into a dict
+    results_dict = dict()
+    for r in res:
+        # Convert all in DB back to individuals
+        this_ind = ds.convert_DB_individual(r,mapping)
+        results_dict[r.hash] = this_ind
+    
+    
+    #===========================================================================
+    # Filter into final_pop and eval_pop
+    #===========================================================================
+    while pop:
+        this_ind = pop.pop()
+        if this_ind.hash in results_dict.keys():
+            this_ind = results_dict[this_ind.hash]
+            final_pop.append(this_ind)
+        else:
+            eval_pop.append(this_ind)
+    
+    # Ensure these are really valid
+    for ind in final_pop:
+        assert ind.fitness.valid, "{}".format(ind)
+                
+    logging.debug("EVALUATE {} individuals are already in database: {}".format(len(results_dict),sorted([i.hash for i in final_pop])))
+    logging.debug("EVALUATE {} individuals are to be evaluated: {}".format(len(eval_pop),sorted([i.hash for i in eval_pop])))
+    
+    return final_pop, eval_pop 
+
+
 def evaluate_pop(pop,session,Results,mapping,evaluate_func,settings):
     """evaluate_pop() performs a filter to ensure that each individual is only evaluated ONCE during the entire evolution
     evaluate_pop calls toolbox.evaluate(individual)
@@ -102,41 +151,7 @@ def evaluate_pop(pop,session,Results,mapping,evaluate_func,settings):
     logging.debug("EVALUATE population size {}: {}".format(len(pop),sorted([i.hash for i in pop])))
     eval_count = 0
     
-    final_pop = list()
-    eval_pop = list()
-    
-    pop_ids = [ind.hash for ind in pop]
-    
-    # Get all matching from DB
-    qry = session.query(Results).filter(Results.hash.in_(( pop_ids )))
-    res = qry.all()
-    
-    # Assemble results into a dict
-    results_dict = dict()
-    for r in res:
-        this_ind = ds.convert_DB_individual(r,mapping)
-        results_dict[r.hash] = this_ind
-    
-    while pop:
-        this_ind = pop.pop()
-        #try: 
-        if this_ind.hash in results_dict.keys():
-            this_ind = results_dict[this_ind.hash]
-            final_pop.append(this_ind)
-        else:
-        #except KeyError:
-            eval_pop.append(this_ind)
-    
-    for ind in final_pop:
-        if not ind.fitness.valid:
-            print(ind)
-            util_sa.printOnePrettyTable(session.bind, 'Results',maxRows = None)
-            raise Exception("Invalid fitness from DB")
-        #assert ind.fitness.valid, "{}".format(ind)
-                
-    logging.debug("EVALUATE {} individuals are already in database: {}".format(len(results_dict),sorted([i.hash for i in final_pop])))
-    logging.debug("EVALUATE {} individuals are to be evaluated: {}".format(len(eval_pop),sorted([i.hash for i in eval_pop])))
-    
+    final_pop, eval_pop = filter_pop(pop,session,Results,mapping)
     
     with loggerDebug():
         # Only evaluate each individual ONCE
@@ -179,13 +194,7 @@ def evaluate_pop(pop,session,Results,mapping,evaluate_func,settings):
 
 
 def evaluate_pop_parallel(pop,session,Results,mapping,evaluate_func,settings):
-    """evaluate_pop() performs a filter to ensure that each individual is only evaluated ONCE during the entire evolution
-    evaluate_pop calls toolbox.evaluate(individual)
-    - Entire population will be stored in final_pop list
-    - If individual is already in DB, it is moved immediately into final_pop (recreated by ORM)
-    - If not in DB, the individual is evaluated and stored in a dictionary newly_evald and added to final_pop
-    - DUPLICATE HANDLING: If the individual is already existing in newly_evald, it is not re-evaluated, but added directly to final_pop
-    - final_pop is returned by function
+    """
     """
     logging.debug("EVALUATE population size {}: {}".format(len(pop),sorted([i.hash for i in pop])))
     eval_count = 0

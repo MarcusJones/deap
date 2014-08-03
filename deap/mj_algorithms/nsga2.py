@@ -103,7 +103,7 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         #===========================================================================
         # First generation    
         #===========================================================================
-        logging.debug("Initializing new population".format())        
+        logging.debug("Initializing new population".format())
         
         pop = mapping.get_random_population(parameters['Population size'])
     
