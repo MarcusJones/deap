@@ -28,6 +28,7 @@ import time
 import itertools
 import sys
 import imp
+import datetime
 
 # External library
 import numpy as np
@@ -110,12 +111,15 @@ def convert_individual_DB(ResultsClass,ind):
 
     for name,val in zip(ind.fitness.names,ind.fitness.values):
         setattr(this_res, "obj_c_{}".format(name),val)
-
+    
+    this_res.start = ind.start_time
+    this_res.finish = ind.finish_time
+    
     return this_res
 
 
 
-def generate_individuals_table(mapping):
+def generate_results_individuals_table(mapping):
     columns = list()
     columns.append(sa.Column('hash', sa.Integer, primary_key=True))
     columns.append(sa.Column('start', sa.DateTime))
@@ -789,6 +793,7 @@ class Individual2(list):
         for val in chromosome:
             assert type(val) == Allele
 
+        
         list_items = list()
         for gene in chromosome:
             if gene.vtype == 'float':
@@ -801,6 +806,10 @@ class Individual2(list):
         
         self.chromosome = chromosome
         self.fitness = fitness
+        
+        
+        self.start_time = None
+        self.finish_time = None
         #self.hash = self.__hash__()
         
         #logging.debug("Individual instantiated; {}".format(self))
@@ -865,27 +874,27 @@ class Individual2(list):
     
     def __str__(self):
         return "{:>12}; {}, fitness:{}".format(self.hash, ", ".join([var.this_val_str() for var in self.chromosome]), self.fitness)
-                              #str() + ) #+ ", ".join([str(id(gene)) for gene in self.chromosome])
-        
-#         name_idx_val = zip(self.names, self.indices, self)
-# 
-#         variable_str = ", ".join(["{}[{}]={}".format(*triplet) for triplet in name_idx_val])
-# 
-#         fitness_str = "{}={}".format(self.fitness_names,self.fitness)
-#         
-#         #fitness_str = ", ".join(["{}={}".format(*triplet) for triplet in zip(self.fitness_names,self.fitness)])
-#         
-#         this_str = "{} {} ({}) -> {}".format(self.__hash__(),variable_str,",".join(self.vtypes),fitness_str)
-#         return(this_str)
-    
-    def assign_fitness(self):
-        raise
-        #print()
-        #print(self.fitness_names)
-        #print(self.fitness)
-        for name, fit in zip(self.fitness_names,self.fitness.values):
-            setattr(self, name, fit)
-        #setattr(self, name, fit)       
+
+    def update(self):
+        """Check on the status of the process, update if necessary
+        """
+        if self.process:
+            retcode = self.process.poll()
+            # Windows exit code
+            if retcode is None:
+                #logging.debug("Update {}, Process: {}, RUNNING".format(self.hash,self.process))                
+                self.status = "Running"
+            else:
+                # Add more handling for irregular retcodes
+                # See i.e. http://www.symantec.com/connect/articles/windows-system-error-codes-exit-codes-description
+                #logging.debug("Update {}, Process: {}, DONE".format(self.hash,self.process))                
+                self.run_status = "Finished"
+                self.finish_time  = datetime.datetime.now()
+        else:
+            # This process has not been started]
+            raise
+            pass
+
 
 #--- Evolution
 
@@ -894,62 +903,47 @@ class Mapping(object):
     def __init__(self, design_space, objective_space):
         self.design_space = design_space
         self.objective_space = objective_space
-        #self.individual = individual
-        #self.evaluator = evaluator
-
         logging.info(self)
-    #, generating {} instances
-
 
     def __str__(self):
         return "Mapping dimension {} domain to dimension {} range".format(self.design_space.dimension,
                                                                   self.objective_space.dimension)
-
-
+    #---Assignment
     def assign_individual(self, Individual):
         self.Individual = Individual
         logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
+
+    def assign_evaluator(self, life_cycle):
+        self.Individual.pre_process  = life_cycle['pre_process']
+        self.Individual.execute  = life_cycle['execute']
+        self.Individual.post_process  = life_cycle['post_process']
+        
+        logging.info("Bound life cycle {}, {}, {} to {}".format(
+                                                                life_cycle['pre_process'],
+                                                                life_cycle['execute'],
+                                                                life_cycle['post_process'],
+                                                                self.Individual.__name__)
+                     )
 
     def assign_fitness(self, Fitness):
         self.fitness = Fitness
         logging.info("This mapping will produce fitness of class {}".format(Fitness.__name__))
     
-    def clone_ind(self, ind):
-        raise
-        #print(ind.fitness)
-        #print(ind.fitness())
-        cloned_Ind = Individual2(ind.chromosome, ind.fitness)
-        assert(cloned_Ind is not ind)
-
-        return cloned_Ind
-    
-    # Generating points in the space-------------
+    #--- Generating points in the space
     def get_random_mapping(self, flg_verbose = False):
         """
         Randomly sample all basis_set vectors, return a random variable vector
         """
-        
         chromosome = list()
-        #indices = list()
-        #vtypes = list()
-        #labels = list()
         for var in self.design_space.basis_set:
             this_var = var.return_random_allele()
             chromosome.append(this_var)
-            #indices.append(var.index)
-            #vtypes.append(var.vtype)
-            #labels.append(var.name)
 
-        #logging.debug("Chromosome [0]:{} {}".format(type(chromosome[0]),chromosome[0]))
-        
-        
         this_ind = self.Individual(chromosome=chromosome, 
-                                    #names=labels,
-                                    #vtypes = vtypes,
-                                    #indices=indices, 
-                                    #fitness_names = self.objective_space.objective_names, 
                                     fitness=self.fitness()
                                     )
+        #this_ind = this_ind.init_life_cycle()
+        
         if flg_verbose:
             logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
             logging.debug("Returned random individual {}".format(this_ind))
@@ -968,6 +962,7 @@ class Mapping(object):
         return indiv_list
 
     def get_global_search(self):
+        raise
         tuple_set = list()
         names = list()
         indices = list()

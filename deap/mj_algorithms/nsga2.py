@@ -65,8 +65,6 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
 
     engine = session.bind
     
-    mapping.assign_individual(ds.Individual2)
-    
     last_gen = session.query(ds.Generation).order_by(ds.Generation.id.desc()).first()
     
     
@@ -115,7 +113,8 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
     #---Evaluate first pop
     print("* GENERATION {:>5} ************************".format(start_gennum))
     
-    pop, eval_count =  algorithm['evaluator'](pop,session,Results,mapping,algorithm['evaluate'],settings)
+    pop, eval_count =  util.evaluate_pop(pop,session,Results,mapping,settings)
+    #algorithm['evaluator'](pop,session,Results,mapping,settings)
     
     #pop, eval_count = util.evaluate_pop(pop,session,Results,mapping,algorithm['evaluate'],settings)
     
@@ -189,7 +188,7 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
                                               parameters = parameters,
                                               path_evolog = settings['path_evolog'])
                 mutated_offspring.append(ind_hash)
-
+                
         this_gen_evo['Mutated offspring'] = util.get_gen_evo_dict_entry(mutated_offspring)
         logging.debug("Mutation complete".format())
             
@@ -198,9 +197,8 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         #=======================================================================
         logging.debug("Evaluating generation {}".format(gen))
         cloned_offspring = [ind_hash.clone() for ind_hash in mutated_offspring]
-        eval_offspring, eval_count = algorithm['evaluator'](cloned_offspring,session,Results,mapping,algorithm['evaluate'],settings)
-        #eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,algorithm['evaluate'],settings)
-
+        eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,settings)
+        
         for ind_hash in parents:
             assert ind_hash.fitness.valid, "{}".format(ind_hash)
         for ind_hash in eval_offspring:

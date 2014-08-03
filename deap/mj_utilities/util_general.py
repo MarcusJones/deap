@@ -21,6 +21,9 @@ import logging.config
 from UtilityLogger import loggerCritical,loggerDebug
 import utility_executor as util_exec
 import deap.design_space as ds
+import time
+import psutil
+
 
 #===============================================================================
 # Code
@@ -139,61 +142,169 @@ def filter_pop(pop,session,Results,mapping):
     return final_pop, eval_pop 
 
 
-def evaluate_pop(pop,session,Results,mapping,evaluate_func,settings):
-    """evaluate_pop() performs a filter to ensure that each individual is only evaluated ONCE during the entire evolution
-    evaluate_pop calls toolbox.evaluate(individual)
-    - Entire population will be stored in final_pop list
-    - If individual is already in DB, it is moved immediately into final_pop (recreated by ORM)
-    - If not in DB, the individual is evaluated and stored in a dictionary newly_evald and added to final_pop
-    - DUPLICATE HANDLING: If the individual is already existing in newly_evald, it is not re-evaluated, but added directly to final_pop
-    - final_pop is returned by function
+def eval_parallel(eval_pop, settings):
+
+    pending_queue = eval_pop
+    live_queue = list()
+    finished_queue = list()
+    
+    start_time = time.time()
+    
+    while live_queue or pending_queue:
+        # The system loop delay
+        time.sleep(settings['parallel_delay'])
+        
+        # Check CPU load
+        currentCPU = psutil.cpu_percent()
+        
+        elapsed_time = time.time() - start_time
+        
+        if elapsed_time % 10 == 1:
+            
+  
+            #print(elapsed_time)
+            logging.debug("{} seconds Pending: {}, Running: {}, Finished: {}, CPU: {}%".format(
+                                                                                               elapsed_time,
+                                                                 len(pending_queue),
+                                                                 len(live_queue),
+                                                                 len(finished_queue),
+                                                                 currentCPU
+                                                                 ))
+                     
+        # Try to move 1 process from pending -> live
+        if (pending_queue and
+            currentCPU <= settings['Maximum_CPU'] and 
+            len(live_queue) < settings['Maximum_processes']):
+            
+            # Shift a run to the live_queue
+            this_ind = pending_queue.pop()
+            
+            this_ind.run_status = "Running"
+            
+            live_queue.append(this_ind)
+            
+            # Execute this run (the last one in live_queue)
+            with loggerCritical():
+                live_queue[-1].pre_process(settings)
+                live_queue[-1].execute(settings)
+
+        # Check the live queue
+        for ind in live_queue:
+            ind.update()
+            #logging.debug("Updated {}, status: {}".format(ind.hash,ind.run_status))                
+            # Move off the live queue if finished
+            if ind.run_status == "Finished":
+                #logging.debug("Moving {} off into finished".format(ind.hash))
+                finished_queue.append(ind)
+                live_queue.remove(ind)
+                ind.post_process(settings)
+    
+    return finished_queue
+
+
+def eval_unique_pop(eval_pop, settings):
+    """Evaluate the population according to the settings
+    """
+    
+    #===========================================================================
+    # Parallel
+    #===========================================================================
+    if 'execution' in settings.keys() and settings['execution'] == 'parallel':
+        for ind in eval_pop:
+            ind.run_status = 'Pending'
+            
+        with loggerCritical():
+            eval_pop = eval_parallel(eval_pop, settings)
+        
+    #===========================================================================
+    # Serial
+    #===========================================================================
+    else:
+        for ind in eval_pop:
+            with loggerDebug():
+                ind.pre_process(settings)
+                ind.execute(settings)
+                ind.post_process(settings)
+                
+    for ind in eval_pop:
+        assert ind.fitness.valid, "Individual {} has invalid fitness; {}".format(ind.hash, ind.fitness)
+    
+    logging.debug("Evaluated {} unique individuals".format(len(eval_pop)))
+    
+    return eval_pop
+        
+def run_population(eval_pop,settings):
+    """Given a population, call the .execute() method on each individual
+    The .execute() method adds the fitness to each ind
+    :returns: Evaluated pop with valid fitness
+    """
+
+    
+    #===========================================================================
+    # To ensure only unique evaluations, get only unique individuals 
+    #===========================================================================
+    unique_evals = list(set(eval_pop))
+    
+    logging.debug("Evaluating {} unique individuals from population of {}".format(len(unique_evals),len(eval_pop))) 
+
+
+    #===========================================================================
+    # Evaluate
+    #===========================================================================
+    unique_evals = eval_unique_pop(unique_evals, settings)
+
+    #===========================================================================
+    # Rebuild the original population by copying for each in original pop
+    #===========================================================================
+    # Create a dict to reference newly evaluated individuals
+    eval_pop_dict = dict([(ind.hash, ind) for ind in unique_evals])
+    
+    # The original pop signaure
+    original_hashes = [ind.hash for ind in eval_pop]
+    
+    # For each in original, copy to final_pop
+    final_pop = list()
+    for ihash in original_hashes:
+        copy_ind = eval_pop_dict[ihash]
+        assert(copy_ind.fitness.valid)
+        final_pop.append(copy_ind)
+    
+    #raise
+
+    return final_pop
+
+def evaluate_pop(pop,session,Results,mapping,settings):
+    """evaluate_pop() 
+    First performs a filter against individuals already in database
+    Then evaluates remaining unique individuals
+    New individuals are added to database
+    These new evaluations are appended to final_pop and returned
     """
     logging.debug("EVALUATE population size {}: {}".format(len(pop),sorted([i.hash for i in pop])))
     eval_count = 0
     
+    # Individuals already in database are added directly to population
     final_pop, eval_pop = filter_pop(pop,session,Results,mapping)
     
-    with loggerDebug():
-        # Only evaluate each individual ONCE
-        newly_evald = dict()
-        while eval_pop:
-            ind = eval_pop.pop()
-            # Check if it has been recently evaluated
-            if ind.hash in newly_evald.keys():
-                logging.debug("Recently evaluated: {} ".format(newly_evald[ind.hash]))
-                copy_ind = newly_evald[ind.hash]
-                assert(copy_ind.fitness.valid)
-                final_pop.append(copy_ind)
-                # Skip to next 
-                continue
-            else:
-                # Individual not recently eval'd (not in dict)
-                # This individual needs to be evaluated
-                #pass
-            
-                # Do a fresh evaluation
-                #with loggerCritical():
-                with loggerDebug():
-                    logging.debug("Fresh eval: {} ".format(ind.hash))
-                    ind = evaluate_func(settings,ind)
-                    logging.debug("Newly evaluated {}".format(ind.hash))
-                    
-                assert(ind.fitness.valid)
-                eval_count += 1
-                res = ds.convert_individual_DB(Results,ind)
-                newly_evald[res.hash] = ind
-                session.merge(res)
-                final_pop.append(ind)
-    session.commit()
+    # Remaining individuals are evaluated
+    evaluated_pop = run_population(eval_pop,settings)
 
+    # Newly evaluated individuals are added to Database
+    for ind in evaluated_pop:
+        res = ds.convert_individual_DB(Results,ind)
+        session.merge(res)
+        final_pop.append(ind)
+        
+    session.commit()
+    
     # Assert that they are indeed evaluated
     for ind in final_pop:
         assert ind.fitness.valid, "{}".format(ind)
-        
+
     return final_pop, eval_count
 
 
-def evaluate_pop_parallel(pop,session,Results,mapping,evaluate_func,settings):
+def evaluate_pop_parallelOLD(pop,session,Results,mapping,evaluate_func,settings):
     """
     """
     logging.debug("EVALUATE population size {}: {}".format(len(pop),sorted([i.hash for i in pop])))

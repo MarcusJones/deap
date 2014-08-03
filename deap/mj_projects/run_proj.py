@@ -18,7 +18,6 @@ from __future__ import print_function
 
 from config import *
 
-import logging.config
 import unittest
 import deap.design_space as ds
 
@@ -35,6 +34,15 @@ import sqlalchemy as sa
 from deap.mj_utilities.db_base import DB_Base
 
 import importlib
+
+#===============================================================================
+# Logging
+#===============================================================================
+import logging.config
+logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
+myLogger = logging.getLogger()
+myLogger.setLevel("DEBUG")
+
 #===============================================================================
 #--- Settings
 #===============================================================================
@@ -177,7 +185,7 @@ def get_algorithm(book):
         
     logging.debug("Algorithm loaded:")
     for item,function in algorithm_def.iteritems():
-        logging.debug("{:>20} - {}".format(item,function.__name__))
+        logging.debug("{:>20} - {}".format(item,function))
 
     return algorithm_def
 
@@ -335,20 +343,7 @@ def run_project_def(path_book):
         # Add the variable names to the DB
         session.add_all(design_space.basis_set)
 
-        
-    #===========================================================================
-    #---Mapping
-    #===========================================================================
-    mapping = ds.Mapping(design_space, objective_space)
-    res_ORM_table = ds.generate_individuals_table(mapping)
-    Results = ds.generate_ORM_individual(mapping)
-    sa.orm.mapper(Results, res_ORM_table) 
-    
-    DB_Base.metadata.create_all(engine)
-    session.commit()
-    
-    mapping.assign_fitness(Fitness)
-    
+
     #===========================================================================
     #---Operators
     #===========================================================================
@@ -363,6 +358,22 @@ def run_project_def(path_book):
     parameters = get_parameters(book)
     for k,v, in parameters.iteritems():
        print("{:>30} : {:<30} {}".format(k,v, type(v)))
+        
+    #===========================================================================
+    #---Mapping
+    #===========================================================================
+    mapping = ds.Mapping(design_space, objective_space)
+    res_ORM_table = ds.generate_results_individuals_table(mapping)
+    Results = ds.generate_ORM_individual(mapping)
+    sa.orm.mapper(Results, res_ORM_table) 
+    
+    DB_Base.metadata.create_all(engine)
+    session.commit()
+    
+    mapping.assign_fitness(Fitness)
+    mapping.assign_individual(ds.Individual2)
+    mapping.assign_evaluator(algorithm['life_cycle'])
+
     
     #===========================================================================
     #---Execute    
@@ -406,11 +417,10 @@ class allTests(unittest.TestCase):
         path_book = os.path.abspath(self.curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary_EXE.xlsx')
         run_project_def(path_book)
         
-        
     def test100_Postprocess(self):
         print("**** TEST {} ****".format(whoami()))
-        path_sql = r'C:\TestProjectRoot\Run145\SQL\results.sql'
-        path_mlab = r"C:\TestProjectRoot\Run145\Matlab"
+        path_sql = r"D:\Projects\PhDprojects\testZDT1exe\Run166\SQL\results.sql"
+        path_mlab = r"D:\Projects\PhDprojects\testZDT1exe\Run166\Matlab"
         util_proc.process_db_to_mat(path_sql,path_mlab)
 
 #===============================================================================

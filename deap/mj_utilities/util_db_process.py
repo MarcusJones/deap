@@ -236,7 +236,16 @@ def get_results_df(meta):
     
     # Drop ID columns as well
     df = pd.DataFrame(data=rows, columns=col_names)
-    df.drop(['Results_start','Results_finish'], axis=1, inplace=True)
+
+    def convert_dt_str(dtime64):
+        date_as_string = str(dtime64)
+        #year_as_string = date_in_some_format[-4:] # last four characters
+        return date_as_string
+    
+    df['Results_start'] = df['Results_start'].apply(convert_dt_str)
+    df['Results_finish'] = df['Results_finish'].apply(convert_dt_str)
+    #print(df)
+    #raise
     for name in get_variable_names(meta):
         df.drop(['vector_{}_id'.format(name)], axis=1, inplace=True)
         df.drop(['Results_var_c_{}'.format(name)], axis=1, inplace=True)
@@ -245,7 +254,7 @@ def get_results_df(meta):
         df.rename(columns={'Results_obj_c_{}'.format(name): name}, inplace=True)
     
     df.rename(columns={'Results_hash'.format(): 'individual'}, inplace=True)
-    
+    logging.debug("Results table returned as frame")
 
     return df
 
@@ -339,6 +348,47 @@ def get_generations_Ospace_df(meta):
     
     return df
 
+
+#--- Get all stats and write to path
+def process_db_to_mat(path_db,path_output):
+    """Write
+    -Results 
+    -Generations
+    -Stats
+    """
+    
+    path_db = r"sqlite:///" + path_db
+    engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
+    meta = sa.MetaData(bind = engine)
+    meta.reflect()
+    
+    #===========================================================================
+    # Results dump
+    #===========================================================================
+    df = get_results_df(meta)
+    name = 'results'
+    path = os.path.join(path_output,"{}.mat".format(name))
+    write_frame_matlab(df,path,name)
+    
+    #===========================================================================
+    # Generations and objectives
+    #===========================================================================
+    df = get_generations_Ospace_df(meta)
+    name = 'generations'
+    path = os.path.join(path_output,"{}.mat".format(name))
+    write_frame_matlab(df,path,name)
+
+    
+    #===========================================================================
+    # Statistics on generations
+    #===========================================================================
+    stats = get_all_gen_stats_df(meta)
+    for name,df in stats.iteritems():
+        path = os.path.join(path_output,"{}.mat".format(name))
+        #path = r"c:\ExportDir\Mat\{}.mat".format(name)
+        #print(name,v)
+        #(frame,path,name = name)
+        write_frame_matlab(df,path,name)    
 
 
 #--- OLD
@@ -496,30 +546,6 @@ def get_gen_stats(engine,genNum):
     return results
 
 
-def process_db_to_mat(path_db,path_output):
-    path_db = r"sqlite:///" + path_db
-    engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
-    meta = sa.MetaData(bind = engine)
-    meta.reflect()
-    
-    
-    # All generations and results
-    
-    df = get_generations_Ospace_df(meta)
-    name = 'generations'
-    path = os.path.join(path_output,"{}.mat".format(name))
-    write_frame_matlab(df,path,name)
-
-    
-    stats = get_all_gen_stats_df(meta)
-    
-    # Statistics frame
-    for name,df in stats.iteritems():
-        path = os.path.join(path_output,"{}.mat".format(name))
-        #path = r"c:\ExportDir\Mat\{}.mat".format(name)
-        #print(name,v)
-        #(frame,path,name = name)
-        write_frame_matlab(df,path,name)    
     
     
     
@@ -607,6 +633,8 @@ class allTests(unittest.TestCase):
             #print(name,v)
             #(frame,path,name = name)
             write_frame_matlab(df,path,name)
+
+
 
 #===============================================================================
 # Main
