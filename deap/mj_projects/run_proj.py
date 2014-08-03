@@ -419,8 +419,8 @@ class allTests(unittest.TestCase):
         
     def test100_Postprocess(self):
         print("**** TEST {} ****".format(whoami()))
-        path_sql = r"D:\Projects\PhDprojects\testZDT1exe\Run166\SQL\results.sql"
-        path_mlab = r"D:\Projects\PhDprojects\testZDT1exe\Run166\Matlab"
+        path_sql = r"D:\Projects\PhDprojects\testZDT1exe\Run168\SQL\results.sql"
+        path_mlab = r"D:\Projects\PhDprojects\testZDT1exe\Run168\Matlab"
         util_proc.process_db_to_mat(path_sql,path_mlab)
 
 #===============================================================================
