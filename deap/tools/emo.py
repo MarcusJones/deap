@@ -210,16 +210,14 @@ details on the NSGA-II operator see [Deb2002]_.
 non-dominated sorting genetic algorithm for multi-objective
 optimization: NSGA-II", 2002.
 """
-    #logging.debug("NSGAIIR with {} individuals, k={}".format(len(individuals),k))
+    logging.debug("NSGAIIR with {} individuals, k={}".format(len(individuals),k))
     if nd == 'standard':
         pareto_fronts = sortNondominated(individuals, k)
-    elif nd == 'log':
-        pareto_fronts = sortLogNondominated(individuals, k)
-    else:
-        raise Exception('selNSGA2: The choice of non-dominated sorting '
-                        'method "{0}" is invalid.'.format(nd))
-    for front in pareto_fronts:
-        assignCrowdingDist(front)
+
+    for i,front in enumerate(pareto_fronts):
+        logging.debug("Crowding distance calculation front {}, {} individuals".format(i,len(individuals)))
+        assignCrowdingDistRevisedUnique(front)
+        
     chosen = list(chain(*pareto_fronts[:-1]))
     k = k - len(chosen)
     if k > 0:
@@ -228,7 +226,66 @@ optimization: NSGA-II", 2002.
         
     return chosen
 
-def UFTournSelection(individuals):
+def assignCrowdingDistRevisedUnique(individuals):
+    """REVISED
+    Assign a crowding distance to each individual's fitness. The
+    crowding distance can be retrieve via the :attr:`crowding_dist`
+    attribute of each individual's fitness.
+    """
+
+    if len(individuals) == 0:
+        raise
+    
+    fitnesses_individuals = [(ind.fitness.values, ind) for ind in individuals]   
+    
+    # Organize individuals by their corresponding fitnesses
+    fit_dict = defaultdict(list)
+    for fit, ind in fitnesses_individuals:
+        fit_dict[fit].append(ind)
+    
+    # Print the individuals dict
+    #for k,v in fit_dict.iteritems():
+    #    print("{:40} -> {} individuals".format(k,len(v)))
+        
+        
+    #print(len(fit_dict) == len(individuals))
+    #
+    
+   
+    # Distances are all set to 0 initially
+    distances = [0.0] * len(individuals)
+    crowd = [(fits, i) for i, fits in enumerate(fit_dict.keys())]
+    for c in crowd:
+        print(c)
+
+    #print(crowd)
+    
+    
+    nobj = len(individuals[0].fitness.values)
+   
+    for i in xrange(nobj):
+        crowd.sort(key=lambda element: element[0][i])
+        distances[crowd[0][1]] = float("inf")
+        distances[crowd[-1][1]] = float("inf")
+        if crowd[-1][0][i] == crowd[0][0][i]:
+            continue
+        norm = nobj * float(crowd[-1][0][i] - crowd[0][0][i])
+        for prev, cur, next in zip(crowd[:-2], crowd[1:-1], crowd[2:]):
+            distances[cur[1]] += (next[0][i] - prev[0][i]) / norm
+    
+    for dist,fit in zip(distances, fit_dict):
+        #print("Fitness: {} Distance:{}".format(fit,dist))
+        for ind in fit_dict[fit]:
+            ind.fitness.crowding_dist = dist
+            #print("{} crowding applied to {}".format(dist,ind.hash))
+        
+    
+    #for i, dist in enumerate(distances):
+    #    individuals[i].fitness.crowding_dist = dist
+
+    #assert(len(fit_dict) == len(individuals)), "DUPLICATES"
+    
+def UFTournSelection(individuals, k):
     """
     Tournament selection as described in [Fortin2013]_
    
@@ -238,6 +295,8 @@ def UFTournSelection(individuals):
     .. [Fortin2013] Fortin,Parizeau "Revisiting the NSGA-II 
     Crowding-Distance Computation", GECCO 2013.
     """
+    logging.debug("Selecting from {} individuals".format(len(individuals)))
+    
     def dominant(pair):
         # Crowding distance dominance comparison
         # Uses fitness directly instead of indirectly through individuals
@@ -284,7 +343,7 @@ def UFTournSelection(individuals):
     #S_chosen = set()
     
     while len(S_chosen) != len(individuals):
-        print(len(S_chosen),len(individuals))
+        #logging.debug("len S_chosen: {}, len individuals: {}".format(len(S_chosen),len(individuals)))
         k = min(2*(len(individuals) - len(S_chosen)), len(Fset))
         #Sample 
         if k % 2 != 0:
@@ -299,24 +358,23 @@ def UFTournSelection(individuals):
         G_fitnesses = random.sample(Fset,k)
         G_fitness_pairs = zip(*[iter(G_fitnesses)]*2)
         
-        print(G_fitness_pairs)
+        #print(G_fitness_pairs)
         
         for pair in G_fitness_pairs:
-            print("{}, {}".format(*pair))
             
             p = dominant(pair)
             
+            #logging.debug("Fitness pair: {}, {}, dominant: {}".format(pair[0],pair[1], p))
+            
             assert fit_dict[p], p 
-            #selected_ind_index = random.randrange(len(fit_dict[p]))
-            #print("Removing index {} from length {}".format(selected_ind_index,len(fit_dict[p])))
-            #selected_ind = fit_dict[p].pop(selected_ind_index)
-            #print(selected_ind)
             selected_ind = random.sample(fit_dict[p],1)[0]
             
             S_chosen.append(selected_ind)
     
-    print("Returning {} from {}".format(len(S_chosen),len(individuals)))
+    logging.debug("Returning {} from {}".format(len(S_chosen),len(individuals)))
     return S_chosen
+
+
 
 
 #######################################

@@ -139,6 +139,7 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         this_gen_evo = dict()
         
         crowds = [ind_hash.fitness.crowding_dist for ind_hash in pop]
+        crowds.sort()
         print("Mean crowding: {} Crowding distances {}".format(np.mean(crowds),crowds))
         
         this_gen_evo['Start population'] = util.get_gen_evo_dict_entry(pop)

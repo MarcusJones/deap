@@ -32,6 +32,10 @@ import utility_SQL_alchemy as util_sa
 import deap.mj_utilities.util_db_process as util_proc
 import sqlalchemy as sa
 from deap.mj_utilities.db_base import DB_Base
+import cProfile
+import time 
+
+import numpy as np
 
 import importlib
 
@@ -287,78 +291,79 @@ def get_objectives(fitness):
 #===============================================================================
 
 def run_project_def(path_book):
-    book = util_excel.ExcelBookRead2(path_book)         
-
-    #===========================================================================
-    #---Settings
-    #===========================================================================
-    settings = get_settings(book)
-    settings['path_book'] = path_book
-
-    settings = build_structure(settings)
-    
-    for k,v, in settings.iteritems():
-       print("{:>30} : {:<30} {}".format(k,v, type(v)))
-    
-    #===========================================================================
-    #---Database
-    #===========================================================================
-    engine = sa.create_engine("sqlite:///{}".format(settings['path_sql_db']), echo=0, listeners=[util_sa.ForeignKeysListener()])
-    Session = sa.orm.sessionmaker(bind=engine)
-    session = Session()
-    logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
-
-    with open(settings['path_evolog'], 'w+') as evolog:
-        print("Start log", file=evolog)
-    
-    
-    #===========================================================================
-    #---DesignSpace, ObjectiveSpace
-    #===========================================================================
-    with loggerCritical():
-        variables = list()
-        list_vars = get_list_variables(book)
-        if list_vars:
-            variables.extend(list_vars)
-        range_vars = variables.extend(get_range_variables(book))
-        if range_vars:
-            variables.extend(range_vars)
-    
-    design_space = ds.DesignSpace(variables)
-    
-
-    
-    # Get ObjectiveSpace
-    Fitness = get_fitness(book)
-    
-    objs = get_objectives(Fitness)
-    objective_space = ds.ObjectiveSpace(objs)
-
-    # Add vectors to DB
-    if settings['existing_db'] == 'No':
-        for var in design_space.basis_set:
-            session.add_all(var.variable_tuple)
-        session.add_all(objs)    
-    
-        # Add the variable names to the DB
-        session.add_all(design_space.basis_set)
-
-
-    #===========================================================================
-    #---Operators
-    #===========================================================================
-    operators = get_operators(book)
-
-    #===========================================================================
-    #---Algorithm
-    #===========================================================================
-
-    algorithm = get_algorithm(book)
-    
-    parameters = get_parameters(book)
-    for k,v, in parameters.iteritems():
-       print("{:>30} : {:<30} {}".format(k,v, type(v)))
+    with util_excel.ExcelBookRead2(path_book) as book:         
+        print("Running this book: {}".format(book))
+        #===========================================================================
+        #---Settings
+        #===========================================================================
+        settings = get_settings(book)
+        settings['path_book'] = path_book
         
+        settings = build_structure(settings)
+        
+        for k,v, in settings.iteritems():
+           print("{:>30} : {:<30} {}".format(k,v, type(v)))
+        
+        #===========================================================================
+        #---Database
+        #===========================================================================
+        engine = sa.create_engine("sqlite:///{}".format(settings['path_sql_db']), echo=0, listeners=[util_sa.ForeignKeysListener()])
+        Session = sa.orm.sessionmaker(bind=engine)
+        session = Session()
+        
+        logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
+    
+        with open(settings['path_evolog'], 'w+') as evolog:
+            print("Start log", file=evolog)
+        
+        
+        #===========================================================================
+        #---DesignSpace, ObjectiveSpace
+        #===========================================================================
+        with loggerCritical():
+            variables = list()
+            list_vars = get_list_variables(book)
+            if list_vars:
+                variables.extend(list_vars)
+            range_vars = variables.extend(get_range_variables(book))
+            if range_vars:
+                variables.extend(range_vars)
+        
+        design_space = ds.DesignSpace(variables)
+        
+    
+        
+        # Get ObjectiveSpace
+        Fitness = get_fitness(book)
+        
+        objs = get_objectives(Fitness)
+        objective_space = ds.ObjectiveSpace(objs)
+    
+        # Add vectors to DB
+        if settings['existing_db'] == 'No':
+            for var in design_space.basis_set:
+                session.add_all(var.variable_tuple)
+            session.add_all(objs)    
+        
+            # Add the variable names to the DB
+            session.add_all(design_space.basis_set)
+    
+    
+        #===========================================================================
+        #---Operators
+        #===========================================================================
+        operators = get_operators(book)
+    
+        #===========================================================================
+        #---Algorithm
+        #===========================================================================
+    
+        algorithm = get_algorithm(book)
+        
+        parameters = get_parameters(book)
+        for k,v, in parameters.iteritems():
+           print("{:>30} : {:<30} {}".format(k,v, type(v)))
+            
     #===========================================================================
     #---Mapping
     #===========================================================================
@@ -387,10 +392,89 @@ def run_project_def(path_book):
                       session=session,
                       Results=Results)
     
+    
+    
+
     #===========================================================================
     # Post process
     #===========================================================================
     util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
+    
+    
+    
+    #===========================================================================
+    #---asdf
+    #===========================================================================
+    if 0:
+        session.commit()
+        print(engine.table_names())
+        
+        #engine.dispose()
+        #DB_Base.metadata.drop_all()
+        #meta = sa.MetaData(bind = engine)
+        #meta.reflect()
+        #meta.drop_all()
+        #session.close()
+        
+    #     print(DB_Base)
+    #     for k in dir(DB_Base):
+    #         print(k)    
+    #     for k in dir(DB_Base.metadata):
+    #         print(k)    
+    #     for k,v in DB_Base.iteritems():
+    #         print(k,v)
+        #print('DB_Base.metadata', DB_Base.metadata)
+        #print('DB_Base.metadata.bind',DB_Base.metadata.bind)
+        DB_Base.metadata.bind = engine
+        #print('DB_Base.metadata.bind',DB_Base.metadata.bind)
+        #print(DB_Base.metadata.bind(engine))
+        DB_Base.metadata.reflect()
+        print("DB_Base:")
+        for k in dir(DB_Base):
+            print(k)
+        print("DB_Base.metadata:")
+        for k in dir(DB_Base.metadata):
+            print(k)   
+        DB_Base.metadata.drop_all()
+        
+        session.close()
+        print(engine.table_names())
+        raise
+        
+        #logging.debug("Done with {}".format(engine, sa.__version__))
+    
+        
+    
+def my_range(start, stop, step):
+    this_list = [float(num) for num in np.arange(start, stop, step)] + [stop] 
+    return this_list
+
+def parameterize_excel_def(template_path,target_path):
+    
+    mod1 = ['Parameters', 'Probability crossover']
+    mod1 = [mod1 + [this_p] for this_p in my_range(0.1, 1, 0.1)]
+    #mod1 = mod1 * 10
+
+    modifications = list()
+    for row in mod1:
+        modifications.append(dict(zip(['Sheet', 'Parameter', 'Value'],row)))
+    
+    for row in  modifications:
+        print(row)
+    #raise
+    
+    for i,mod in enumerate(modifications):
+        print('This mod: {}'.format(mod))
+        name = 'Definition'+str(i)+'.xlsx'
+        with util_excel.ExcelBookAPI(template_path) as book:            
+            this_target_path = os.path.join(target_path,name)
+        this_book = book.clone(this_target_path)
+        print('This book: {}'.format(this_book))
+        target_row = this_book.scanDown2(mod['Sheet'], 1, 1, mod['Parameter'], limitScan=100)
+        target_col = 2
+        this_book.write_one(mod['Sheet'],target_row,target_col,mod['Value'])
+        this_book.save_and_close_no_warnings()
+
     
 #===============================================================================
 # Unit testing
@@ -412,32 +496,88 @@ class allTests(unittest.TestCase):
         path_book = os.path.abspath(self.curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary.xlsx')
         run_project_def(path_book)
 
+    def test021_nsga1_zdt1_Xbinary_Mbinary_SMALL(self):
+        print("**** TEST {} ****".format(whoami()))
+        path_book = os.path.abspath(self.curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary SMALL.xlsx')
+        run_project_def(path_book)
+
+
     def test030_nsga1_zdt1_Xbinary_Mbinary_EXE(self):
         print("**** TEST {} ****".format(whoami()))
         path_book = os.path.abspath(self.curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary_EXE.xlsx')
         run_project_def(path_book)
+    
+    def test040_run_multiple_in_dir(self):
+        print("**** TEST {} ****".format(whoami()))
+        multiple_path = r"D:\Projects\PhDprojects\Multiple"
+        multiple_path = r"D:\Projects\PhDprojects\Multiple\this_test"
+        #rootPath, search_name, search_ext
+        def_book_paths = util_path.get_files_by_name_ext(multiple_path,'.','xlsx')
+        for path_book in def_book_paths:
+            time.sleep(2)
+            print("RUNNING", path_book)
+            run_project_def(path_book)
+            #path_sql
+        #print(files)
         
+    
     def test100_Postprocess(self):
         print("**** TEST {} ****".format(whoami()))
         path_sql = r"D:\Projects\PhDprojects\testZDT1exe\Run168\SQL\results.sql"
         path_mlab = r"D:\Projects\PhDprojects\testZDT1exe\Run168\Matlab"
         util_proc.process_db_to_mat(path_sql,path_mlab)
-
+        
+    def test200_parameterize_excel(self):
+        path_template = r'D:\Projects\PhDprojects\Multiple\Template1.xlsx'
+        path_target_dir = r'D:\Projects\PhDprojects\Multiple\this_test\\'
+        parameterize_excel_def(path_template,path_target_dir)
+        
+    def test300_Profile(self):
+        curr_dir = os.path.dirname(os.path.realpath(__file__))
+        path_book = os.path.abspath(curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary.xlsx')
+        print("Profile")
+        cProfile.run('run_project_def(path_book)', filename=r"thisprofileoutput")
+            
 #===============================================================================
 # Main
 #===============================================================================
 if __name__ == "__main__":
     print(ABSOLUTE_LOGGING_PATH)
     logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-    
 
-    myLogger = logging.getLogger()
-    myLogger.setLevel("DEBUG")
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    path_book = os.path.abspath(curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary.xlsx')
+    print("Profile")
+    this_profile = cProfile.run('run_project_def(path_book)', filename=r"thisprofileoutput")
 
-    logging.debug("Started _main".format())
+#     #flgp = 1
+#     
+#     if flgp == 2:
+#         path_evolog = r'c:\ExportDir\\test_log.txt'
+#         pop, stats = main(path_db,path_evolog)
+#         pop.sort(key=lambda x: x.fitness.values)
+#         
+#         print(stats)
+#     
+#         with open(r"../../examples/ga/pareto_front/zdt1_front.json") as optimal_front_data:
+#             optimal_front = json.load(optimal_front_data)
+#         # Use 500 of the 1000 points in the json file
+#         optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
+#         print("Convergence: ", convergence(pop, optimal_front))
+#         print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
+#         
+#         print_res(pop,optimal_front)
+
+
+
+
+    #myLogger = logging.getLogger()
+    #myLogger.setLevel("DEBUG")
+
+    #logging.debug("Started _main".format())
     
     #print FREELANCE_DIR
     
-    unittest.main()
+    #unittest.main()
 
-    logging.debug("Finished _main".format())
+    #logging.debug("Finished _main".format())
