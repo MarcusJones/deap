@@ -5,7 +5,7 @@ import random
 
 from itertools import chain
 from operator import attrgetter, itemgetter
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from operator import truediv
 import logging
 
@@ -219,12 +219,49 @@ optimization: NSGA-II", 2002.
         assignCrowdingDistRevisedUnique(front)
         
     chosen = list(chain(*pareto_fronts[:-1]))
-    k = k - len(chosen)
-    if k > 0:
-        sorted_front = sorted(pareto_fronts[-1], key=attrgetter("fitness.crowding_dist"), reverse=True)
-        chosen.extend(sorted_front[:k])
+    
+    # Update k to show remaining
+    remaining = k - len(chosen)
+    #print("remaining = k - len(chosen)   {} = {} - {}".format(remaining, k, len(chosen)))
+    if remaining > 0:
+        chosen.extend(lastFrontSelection(front, remaining))
+        #sorted_front = sorted(pareto_fronts[-1], key=attrgetter("fitness.crowding_dist"), reverse=True)
+        #chosen.extend(sorted_front[:remaining])
         
     return chosen
+
+def lastFrontSelection(last_front, k_remaining):
+    logging.debug("NSGAIIR topping up with {} individuals from last front".format(k_remaining))
+    
+    #fit_dict = get_fit_dict(last_front)
+    
+    sorted_by_cd_front = sorted(last_front, key=attrgetter("fitness.crowding_dist"), reverse=True)
+    #sorted(fit_dict, key=attrgetter("fitness.crowding_dist"), reverse=True)
+    
+    #OrderedDict(fit_dict)
+    #for k,v in fit_dict.iteritems():
+    #    print(k,v)
+        
+    #F_sorted = sorted(last_front, key=attrgetter("fitness.crowding_dist"), reverse=True)
+    raise
+    S_selected = list()
+    
+
+def get_fit_dict(individuals):
+    """Utility
+    Given a list of individuals, return a dictionary
+    Keys are the fitnesses (therefore unique)
+    Values are a list of individuals with this fitness
+    """
+    fitnesses_individuals = [(ind.fitness.values, ind) for ind in individuals]   
+    
+    # Organize individuals by their corresponding fitnesses
+    fit_dict = defaultdict(list)
+    for fit, ind in fitnesses_individuals:
+        fit_dict[fit].append(ind)
+    
+    return fit_dict
+
 
 def assignCrowdingDistRevisedUnique(individuals):
     """REVISED
