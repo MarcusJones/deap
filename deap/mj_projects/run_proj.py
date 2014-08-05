@@ -16,10 +16,13 @@ Etc.
 from __future__ import division
 from __future__ import print_function
 
+import sys
+sys.path.append(r'C:\Users\jon\git\deap1\deap')
+
 from config import *
 
 import unittest
-import deap.design_space as ds
+import design_space as ds
 
 import utility_excel as util_excel
 from utility_inspect import whoami, whosdaddy, listObject
@@ -29,14 +32,15 @@ import re
 import deap as dp
 import shutil
 import utility_SQL_alchemy as util_sa
-import deap.mj_utilities.util_db_process as util_proc
+import mj_utilities.util_db_process as util_proc
 import sqlalchemy as sa
-from deap.mj_utilities.db_base import DB_Base
+from mj_utilities.db_base import DB_Base
 import cProfile
 import time 
 import subprocess
 
 import numpy as np
+
 
 import importlib
 
@@ -548,10 +552,13 @@ if __name__ == "__main__":
     print(ABSOLUTE_LOGGING_PATH)
     logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
 
-    curr_dir = os.path.dirname(os.path.realpath(__file__))
-    path_book = os.path.abspath(curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary.xlsx')
-    print("Profile")
-    this_profile = cProfile.run('run_project_def(path_book)', filename=r"thisprofileoutput")
+    for arg in sys.argv:
+        print(arg)
+    
+    #curr_dir = os.path.dirname(os.path.realpath(__file__))
+    #path_book = os.path.abspath(curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary.xlsx')
+    #print("Profile")
+    #this_profile = cProfile.run('run_project_def(path_book)', filename=r"thisprofileoutput")
 
 #     #flgp = 1
 #     

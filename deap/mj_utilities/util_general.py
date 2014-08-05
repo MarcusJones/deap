@@ -20,7 +20,7 @@ import logging.config
 
 from UtilityLogger import loggerCritical,loggerDebug
 import utility_executor as util_exec
-import deap.design_space as ds
+import design_space as ds
 import time
 import psutil
 
