@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 # Setup
-from deap.mj_config.deapconfig import *
+from mj_config.deapconfig import *
 import logging.config
 
 # Standard library
@@ -41,7 +41,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Table
 from copy import deepcopy
 
-from deap.mj_utilities.db_base import DB_Base
+from mj_utilities.db_base import DB_Base
 
 from operator import mul, truediv
 

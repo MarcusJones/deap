@@ -8,46 +8,56 @@
 """This module does A and B.
 Etc.
 """
-
 #===============================================================================
 # Set up
 #===============================================================================
 # Standard:
 from __future__ import division
 from __future__ import print_function
+from deap.mj_config.deapconfig import *
 
-import sys
-sys.path.append(r'C:\Users\jon\git\deap1\deap')
-
-from config import *
-
-import unittest
-import design_space as ds
-
-import utility_excel as util_excel
-from utility_inspect import whoami, whosdaddy, listObject
-from UtilityLogger import loggerCritical,loggerDebug
-import utility_path as util_path
-import re
-import deap as dp
-import shutil
+#===============================================================================
+# Internal
+#===============================================================================
 import utility_SQL_alchemy as util_sa
-import mj_utilities.util_db_process as util_proc
+import deap as dp
+import deap.design_space as ds
+import deap.mj_utilities.util_db_process as util_proc
+from deap.mj_utilities.db_base import DB_Base
+
+#===============================================================================
+# External
+#===============================================================================
+import numpy as np
 import sqlalchemy as sa
-from mj_utilities.db_base import DB_Base
+import sqlalchemy.orm as sa_orm
+
+#===============================================================================
+# Utilities
+#===============================================================================
+from utility_inspect import whoami, whosdaddy, listObject
+import utility_excel as util_excel
+import utility_path as util_path
+
+#===============================================================================
+# Standard library
+#===============================================================================
+import importlib
 import cProfile
 import time 
 import subprocess
-
-import numpy as np
-
-
-import importlib
+import re
+import shutil
+import sys
+import unittest
+import os
 
 #===============================================================================
 # Logging
 #===============================================================================
 import logging.config
+from UtilityLogger import loggerCritical,loggerDebug
+
 logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
 myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
@@ -337,7 +347,7 @@ def run_project_def(path_book):
         
         design_space = ds.DesignSpace(variables)
         
-    
+        
         
         # Get ObjectiveSpace
         Fitness = get_fitness(book)
@@ -353,7 +363,7 @@ def run_project_def(path_book):
         
             # Add the variable names to the DB
             session.add_all(design_space.basis_set)
-    
+        
         #===========================================================================
         #---Operators
         #===========================================================================
@@ -377,12 +387,12 @@ def run_project_def(path_book):
     Results = ds.generate_ORM_individual(mapping)
     sa.orm.mapper(Results, res_ORM_table) 
     
-    DB_Base.metadata.create_all(engine)
-    for item in session.new:
-        print(item)
+    #for item in session.new:
+    #    print(item)
     #raise
+    DB_Base.metadata.create_all(engine)
     session.commit()
-    
+    #raise
     mapping.assign_fitness(Fitness)
     mapping.assign_individual(ds.Individual2)
     mapping.assign_evaluator(algorithm['life_cycle'])
@@ -458,10 +468,10 @@ def my_range(start, stop, step):
     return this_list
 
 def parameterize_excel_def(template_path,target_path):
-    
+    logging.debug("Template file: {}".format(template_path))
     mod1 = ['Parameters', 'Probability crossover']
     mod1 = [mod1 + [this_p] for this_p in my_range(0.1, 1, 0.1)]
-    #mod1 = mod1 * 10
+    mod1 = mod1 * 10
 
     modifications = list()
     for row in mod1:
@@ -494,6 +504,9 @@ class allTests(unittest.TestCase):
         print("**** TEST {} ****".format(whoami()))
         self.curr_dir = os.path.dirname(os.path.realpath(__file__))
         
+    def test000_empty(self):
+        print("**** TEST {} ****".format(whoami()))
+ 
     def test010_testing_zdt1(self):
         print("**** TEST {} ****".format(whoami()))
         path_book = os.path.abspath(self.curr_dir + r'\definitionbooks\testing_zdt1.xlsx')
@@ -553,10 +566,23 @@ class allTests(unittest.TestCase):
 if __name__ == "__main__":
     print(ABSOLUTE_LOGGING_PATH)
     logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-
-    for arg in sys.argv:
-        print(arg)
+    print("Start")
     
+    assert sys.argv
+    for arg in sys.argv:
+        print("Argument:",arg)
+        
+    
+    assert len(sys.argv) == 2
+    print("Received arguments: {}".format(sys.argv))
+    path_this_module = sys.argv[0]
+    path_book = sys.argv[1]
+    run_project_def(path_book)
+    
+    print("Complete")
+    #    print
+    #
+    #raise
     #curr_dir = os.path.dirname(os.path.realpath(__file__))
     #path_book = os.path.abspath(curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary.xlsx')
     #print("Profile")

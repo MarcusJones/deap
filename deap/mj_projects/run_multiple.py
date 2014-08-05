@@ -19,7 +19,7 @@ from run_proj import run_project_def
 import utility_path as util_path
 
 import sys
-
+import subprocess
 
 #===============================================================================
 # Logging
@@ -50,9 +50,10 @@ class Tests(unittest.TestCase):
         #rootPath, search_name, search_ext
         def_book_paths = util_path.get_files_by_name_ext(multiple_path,'.','xlsx')
         for path_book in def_book_paths:
-            print("RUNNING", path_book)
-            run_project_def(path_book)
-            #path_sql
-        #print(files)
-        
+            #
+            script_path = r"C:\Users\jon\git\deap1\deap\mj_projects\run_proj.py"
+            full_call = ['python',  script_path, path_book]
+            print("RUNNING", full_call)
+            subprocess.call(full_call, shell=False)
+
         

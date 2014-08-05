@@ -33,7 +33,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 import numpy as np
 
-import design_space as ds
+from deap import design_space as ds
 
 import scipy.io as sio
 

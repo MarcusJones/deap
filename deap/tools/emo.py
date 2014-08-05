@@ -232,21 +232,42 @@ optimization: NSGA-II", 2002.
 
 def lastFrontSelection(last_front, k_remaining):
     logging.debug("NSGAIIR topping up with {} individuals from last front".format(k_remaining))
+    print("Last fr")
+    for i in last_front:
+        print(i.fitness.crowding_dist,i)
     
-    #fit_dict = get_fit_dict(last_front)
+        
     
-    sorted_by_cd_front = sorted(last_front, key=attrgetter("fitness.crowding_dist"), reverse=True)
-    #sorted(fit_dict, key=attrgetter("fitness.crowding_dist"), reverse=True)
-    
-    #OrderedDict(fit_dict)
+    fit_dict = get_fit_dict(last_front)
+    last_front_unique = list(set(last_front))
+    #print(last_front_unique)
+    #raise
     #for k,v in fit_dict.iteritems():
     #    print(k,v)
-        
-    #F_sorted = sorted(last_front, key=attrgetter("fitness.crowding_dist"), reverse=True)
-    raise
-    S_selected = list()
-    
+    #raise
+    #get_fit_dict()
+    F_sorted_by_cd_front_unique = sorted(last_front_unique, key=attrgetter("fitness.crowding_dist"), reverse=True)
 
+
+    print("Unique")
+    for i in F_sorted_by_cd_front_unique:
+        print(i.fitness.crowding_dist,i)
+    #if len()
+    #raise
+    
+    
+    S_selected = list()
+    j = 1
+    
+    #while len(S_selected) != k_remaining:
+    #    pass
+    
+    #if k_remaining > 3:
+    #    raise
+    
+    # TEMP FOR NOW
+    return last_front[:k_remaining]
+    
 def get_fit_dict(individuals):
     """Utility
     Given a list of individuals, return a dictionary
