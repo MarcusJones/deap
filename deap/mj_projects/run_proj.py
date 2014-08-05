@@ -34,6 +34,7 @@ import sqlalchemy as sa
 from deap.mj_utilities.db_base import DB_Base
 import cProfile
 import time 
+import subprocess
 
 import numpy as np
 
@@ -308,6 +309,7 @@ def run_project_def(path_book):
         #---Database
         #===========================================================================
         engine = sa.create_engine("sqlite:///{}".format(settings['path_sql_db']), echo=0, listeners=[util_sa.ForeignKeysListener()])
+        print("**************",engine)
         Session = sa.orm.sessionmaker(bind=engine)
         session = Session()
         
@@ -391,14 +393,14 @@ def run_project_def(path_book):
                       mapping=mapping, 
                       session=session,
                       Results=Results)
-    
+     
     
     
 
     #===========================================================================
     # Post process
     #===========================================================================
-    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
+    #util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
     
     
     
@@ -519,7 +521,8 @@ class allTests(unittest.TestCase):
             run_project_def(path_book)
             #path_sql
         #print(files)
-        
+
+
     
     def test100_Postprocess(self):
         print("**** TEST {} ****".format(whoami()))

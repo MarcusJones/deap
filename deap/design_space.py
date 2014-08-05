@@ -151,7 +151,7 @@ def generate_ORM_individual(mapping):
                     '__repr__' : __repr__,
                 }
     for var in mapping.design_space.basis_set:
-        attr_dict["var_c_{}".format(var.name)] =sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ) 
+        attr_dict["var_c_{}".format(var.name)] = sa.Column("var_c_{}".format(var.name), sa.Integer, sa.ForeignKey('vector_{}.id'.format(var.name)), nullable = False,  ) 
     for obj in mapping.objective_space.objective_names:
         attr_dict["obj_c_{}".format(obj)] =  sa.Column("obj_c_{}".format(obj), sa.Float)
     
