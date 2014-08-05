@@ -354,7 +354,6 @@ def run_project_def(path_book):
             # Add the variable names to the DB
             session.add_all(design_space.basis_set)
     
-    
         #===========================================================================
         #---Operators
         #===========================================================================
@@ -379,6 +378,9 @@ def run_project_def(path_book):
     sa.orm.mapper(Results, res_ORM_table) 
     
     DB_Base.metadata.create_all(engine)
+    for item in session.new:
+        print(item)
+    #raise
     session.commit()
     
     mapping.assign_fitness(Fitness)
@@ -404,7 +406,7 @@ def run_project_def(path_book):
     #===========================================================================
     # Post process
     #===========================================================================
-    #util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
+    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
     
     
     
