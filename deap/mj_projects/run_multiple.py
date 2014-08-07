@@ -39,15 +39,9 @@ class Tests(unittest.TestCase):
         #print("Setup")
         #myLogger.setLevel("DEBUG")
 
-    def test010_SimpleCreation(self):
-        print("**** TEST {} ****".format(whoami()))
-
-    
     def test040_run_multiple_in_dir_execfile(self):
         print("**** TEST {} ****".format(whoami()))
-        multiple_path = r"D:\Projects\PhDprojects\Multiple"
-        multiple_path = r"D:\Projects\PhDprojects\Multiple\this_test"
-        #rootPath, search_name, search_ext
+        multiple_path = r"D:\Projects\PhDprojects\Multiple\ExplorationStudy1"
         print(multiple_path)
 
         def_book_paths = util_path.get_files_by_name_ext(multiple_path,'.','xlsx')

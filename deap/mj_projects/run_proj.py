@@ -15,6 +15,8 @@ Etc.
 from __future__ import division
 from __future__ import print_function
 from deap.mj_config.deapconfig import *
+import time
+import itertools
 
 #===============================================================================
 # Internal
@@ -44,9 +46,6 @@ import utility_GUI as util_gui
 #===============================================================================
 import importlib
 import cProfile
-import time 
-import subprocess
-import re
 import shutil
 import sys
 import unittest
@@ -322,12 +321,22 @@ def run_project_def(path_book):
         #===========================================================================
         #---Database
         #===========================================================================
-        engine = sa.create_engine("sqlite:///{}".format(settings['path_sql_db']), echo=0, listeners=[util_sa.ForeignKeysListener()])
+        
+        if settings['in_memory'] == 'Yes':
+            engine = sa.create_engine("sqlite:///{}".format(':memory:'), echo=0, listeners=[util_sa.ForeignKeysListener()])
+            logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
+            
+        elif settings['in_memory'] == 'No':            
+            engine = sa.create_engine("sqlite:///{}".format(settings['path_sql_db']), echo=0, listeners=[util_sa.ForeignKeysListener()])
+            logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
+
+        else:
+            raise
+        
         print("**************",engine)
         Session = sa.orm.sessionmaker(bind=engine)
         session = Session()
         
-        logging.debug("Initialized session {} with SQL alchemy version: {}".format(engine, sa.__version__))
     
         with open(settings['path_evolog'], 'w+') as evolog:
             print("Start log", file=evolog)
@@ -377,8 +386,11 @@ def run_project_def(path_book):
         for k,v, in parameters.iteritems():
            print("{:>30} : {:<30} {}".format(k,v, type(v)))
         
-        
-        util_gui.simpleYesNo(question="Question; Yes or No?")
+    #===========================================================================
+    #---GUI
+    #===========================================================================
+    #util_gui.simpleYesNo(question="Question; Yes or No?")
+    
     #===========================================================================
     #---Mapping
     #===========================================================================
@@ -416,6 +428,9 @@ def run_project_def(path_book):
     #===========================================================================
     # Post process
     #===========================================================================
+    
+    #util_proc.copy_db(engine,settings['path_sql_db'])
+    
     #util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
     
     
@@ -467,6 +482,22 @@ def my_range(start, stop, step):
     this_list = [float(num) for num in np.arange(start, stop, step)] + [stop] 
     return this_list
 
+
+def parameterize_excel_def_from_table(template_path,target_path,def_table):
+    for i,this_def in enumerate(def_table):
+        name = 'Definition'+str(i)+'.xlsx'
+        with util_excel.ExcelBookAPI(template_path) as book:            
+            this_target_path = os.path.join(target_path,name)
+        this_book = book.clone(this_target_path)        
+        for mod in this_def:
+            print('This mod: {}'.format(mod))
+            print('This book: {}'.format(this_book))
+            target_row = this_book.scanDown2(mod[0], 1, 1, mod[1], limitScan=100)
+            target_col = 2
+            this_book.write_one(mod[0],target_row,target_col,mod[2])
+        this_book.save_and_close_no_warnings()
+            
+    
 def parameterize_excel_def(template_path,target_path):
     logging.debug("Template file: {}".format(template_path))
     mod1 = ['Parameters', 'Probability crossover']
@@ -493,7 +524,7 @@ def parameterize_excel_def(template_path,target_path):
         this_book.write_one(mod['Sheet'],target_row,target_col,mod['Value'])
         this_book.save_and_close_no_warnings()
 
-    
+
 #===============================================================================
 # Unit testing
 #===============================================================================
@@ -529,8 +560,11 @@ class allTests(unittest.TestCase):
     
     def test040_run_multiple_in_dir(self):
         print("**** TEST {} ****".format(whoami()))
-        multiple_path = r"D:\Projects\PhDprojects\Multiple"
-        multiple_path = r"D:\Projects\PhDprojects\Multiple\this_test"
+        raise  
+    
+        #multiple_path = r"D:\Projects\PhDprojects\Multiple"
+        #multiple_path = r"D:\Projects\PhDprojects\Multiple\this_test"
+        multiple_path = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1\\'
         #rootPath, search_name, search_ext
         def_book_paths = util_path.get_files_by_name_ext(multiple_path,'.','xlsx')
         for path_book in def_book_paths:
@@ -552,6 +586,52 @@ class allTests(unittest.TestCase):
         path_template = r'D:\Projects\PhDprojects\Multiple\Template1.xlsx'
         path_target_dir = r'D:\Projects\PhDprojects\Multiple\this_test\\'
         parameterize_excel_def(path_template,path_target_dir)
+
+    def test210_parameterize_excel_table_version(self):
+        path_template = r'D:\Projects\PhDprojects\Multiple\ExploreStudy1 nsga1_zdt1_Xbinary_Mbinary.xlsx'
+        path_target_dir = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1\\'
+        
+        #=======================================================================
+        # Possible values of parameters
+        #=======================================================================
+        mods = list()
+        mods.append(['Parameters', 'Population size', [20, 40, 100]])
+        mods.append(['Parameters', 'Generations', [250]])
+        #mods.append(['Parameters', 'Probability crossover individual', [0,0.5,1]])
+        mods.append(['Parameters', 'Probability crossover individual', [1]])
+        mods.append(['Parameters', 'Probability crossover allele', [0.01,0.03,0.1]])
+        #mods.append(['Parameters', 'Probability mutation individual', [0,0.5,1]])
+        mods.append(['Parameters', 'Probability mutation individual', [1]])
+        mods.append(['Parameters', 'Probability mutation allele', [0.01,0.03,0.1]])
+        mods.append(['Parameters', 'Crowding degree', [10,20,40]])
+        
+        #=======================================================================
+        # Each variant expanded
+        #=======================================================================
+        expanded_mods = list()
+        for m in mods:
+            expanded_mods.append(([[m[0], m[1], val] for val in m[2]]))
+            
+        #=======================================================================
+        # Cartesian product
+        #=======================================================================
+        res = itertools.product(*expanded_mods)
+        final_defs = list()
+        for r in res: 
+            final_defs.append(r)
+        
+        mod_dicts = list()
+        for row in final_defs:
+            #print(row)
+            mod_dicts.append(dict(zip(['Sheet', 'Parameter', 'Value'],row)))
+            #print(mod_dicts[0])
+            #raise
+        
+        #raise
+        parameterize_excel_def_from_table(path_template,path_target_dir,final_defs)
+
+
+
         
     def test300_Profile(self):
         curr_dir = os.path.dirname(os.path.realpath(__file__))

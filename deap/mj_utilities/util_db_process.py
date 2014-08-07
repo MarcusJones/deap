@@ -44,7 +44,93 @@ def lister(item):
 #===============================================================================
 # Code
 #===============================================================================
+def copy_db(old_engine, new_path):
+    print(old_engine)
+    print(new_path)
+    #results_table = util_sa.get_table_object(engine, "Results")
+    t_names = util_sa.get_table_names(old_engine)
+    print(t_names)
+    for tn in t_names:
+        this_table = util_sa.get_table_object(old_engine,tn)
+        #print()
+        
+        for c in this_table.c:
+            print(dir(c))
+            raise
+    raise
 
+
+def copy_test2(old_engine,new_path):
+    from sqlalchemy import create_engine, Table, Column, Integer, Unicode, MetaData, String, Text, update, and_, select, func, types
+     
+    # create engine, reflect existing columns, and create table object for oldTable
+    #old_engine = create_engine('mysql+mysqldb://username:password@111.111.111.111/database') # change this for your source database
+    
+    
+    old_engine._metadata = MetaData(bind=old_engine)
+    old_engine._metadata.reflect(old_engine) # get columns from existing table
+    srcTable = Table('oldTable', old_engine._metadata)
+     
+    # create engine and table object for newTable
+    dest_engine = sa.create_engine("sqlite:///{}".format(new_path), echo=0, listeners=[util_sa.ForeignKeysListener()])
+    dest_engine._metadata = MetaData(bind=dest_engine)
+    destTable = Table('newTable', dest_engine._metadata)
+     
+    # copy schema and create newTable from oldTable
+    for column in srcTable.columns:
+        destTable.append_column(column.copy())
+        destTable.create()    
+        
+"""  
+1
+2
+3
+4
+5
+
+    
+
+import pickle
+output = open('users.pkl', 'wb')
+users = Session.query(User).all()
+pickle.dump(users, output)
+output.close()
+
+But after consulting the sqlalchemy documentation I figured there was a better way to accomplish my goal.
+
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+
+    
+
+src = create_engine('mysql+oursql://username:password@127.0.0.1:3306/dbname')
+dst = create_engine('postgresql://username:password@localhost:5432/dbname')
+
+tables = Base.metadata.tables;
+for tbl in tables:
+    print ('##################################')
+    print (tbl)
+    print ( tables[tbl].select())
+    data = src.execute(tables[tbl].select()).fetchall()
+    for a in data: print(a)
+    if data:
+        print (tables[tbl].insert())
+        dst.execute( tables[tbl].insert(), data)
+"""
+
+
+        
 #--- Utility
 
 def print_tables(session):

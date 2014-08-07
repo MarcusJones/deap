@@ -12,6 +12,7 @@
 #
 #    You should have received a copy of the GNU Lesser General Public
 #    License along with DEAP. If not, see <http://www.gnu.org/licenses/>.
+
 #===============================================================================
 # Import settings and logger
 #===============================================================================
@@ -36,7 +37,13 @@ import deap.mj_utilities.util_general as util
 
 
 import utility_path as util_path
+
+#===============================================================================
+# Standard
+#===============================================================================
+import time
 import cProfile
+
 #===============================================================================
 # Import other
 #===============================================================================
@@ -58,6 +65,10 @@ from deap.benchmarks.tools import diversity, convergence
 from deap import base
 from deap import creator
 from deap import tools
+
+#===============================================================================
+# Code
+#===============================================================================
 
 def nsga2(settings, algorithm, parameters, operators, mapping, session, Results):
     with open(settings['path_evolog'], 'w+') as evolog:
@@ -132,6 +143,9 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
 
     #---Start evolution
     for gen in range(start_gennum+1, start_gennum + parameters['Generations']):
+        
+        t_gen_start = time.time()
+
         print("* GENERATION {:>5} ************************".format(gen))
         with open(settings['path_evolog'], 'a') as evolog:
             print("* GENERATION {:>5} ************************".format(gen), file=evolog)
@@ -242,6 +256,10 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         
         session.add_all(gen_rows)
         session.commit()
+
+        t_gen_end = time.time()
+        elapsed = t_gen_end - t_gen_start 
+        logging.debug("Generation {} completed after {}".format(gen,elapsed))
 
     #---Finished generation
 
