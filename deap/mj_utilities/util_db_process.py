@@ -356,6 +356,7 @@ def process_db_to_mat(path_db,path_output):
     -Generations
     -Stats
     """
+    logging.debug("Processing {}".format(path_db))
     
     path_db = r"sqlite:///" + path_db
     engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
@@ -628,11 +629,14 @@ class allTests(unittest.TestCase):
         print("**** TEST {} ****".format(whoami()))
         stats = get_all_gen_stats_df(self.meta)
         
-        for name,df in stats.iteritems():
-            path = r"c:\ExportDir\Mat\{}.mat".format(name)
-            #print(name,v)
-            #(frame,path,name = name)
-            write_frame_matlab(df,path,name)
+        path_sql = r'D:\Projects\PhDprojects\Multiple\this_test2\Run000\SQL\results.sql'
+        path_output = r"c:\ExportDir\Mat\\"
+        process_db_to_mat(path_sql,path_output)
+#         for name,df in stats.iteritems():
+#             path = r"c:\ExportDir\Mat\{}.mat".format(name)
+#             #print(name,v)
+#             #(frame,path,name = name)
+#             write_frame_matlab(df,path,name)
 
 
 

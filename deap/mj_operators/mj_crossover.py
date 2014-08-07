@@ -104,7 +104,7 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, mapping, parameters, path_evolog):
                 produce solutions much more different.
     :param low: =mapping; A value or an :term:`python:sequence` of values that is the lower
                 bound of the search space.
-    :param up: =mapping;A value or an :term:`python:sequence` of values that is the upper
+    :param up: =mapping; A value or an :term:`python:sequence` of values that is the upper
                bound of the search space.
     :returns: A tuple of two individuals.
 
@@ -150,7 +150,7 @@ def mj_cxSimulatedBinaryBounded(ind1, ind2, mapping, parameters, path_evolog):
         assert(this_gene.locus == ind1_allele.locus == ind2_allele.locus)
                 
         # Flip this allele only if probability threshold passed
-        if random.random() <= 0.5: # 0.5 in original 
+        if random.random() <= parameters['Probability crossover allele']: # 0.5 in original 
             flg_cx = 'X'
 
             

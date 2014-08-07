@@ -112,11 +112,12 @@ def mj_mutPolynomialBounded(individual, mapping, parameters, path_evolog):
                 is the lower bound of the search space.
     :param up: A value or a :term:`python:sequence` of values that
                is the upper bound of the search space.
+    :param prob_mutate_this_allele: =parameters['prob_mutate_this_allele']; Probability to mutate this allele
     :returns: A tuple of one individual.
     """
     
     eta = parameters['Crowding degree']
-    indpb = parameters['indpb']
+    prob_mutate_this_allele = parameters['Probability mutation allele']
     
     size = len(individual)
     low = list()
@@ -147,7 +148,7 @@ def mj_mutPolynomialBounded(individual, mapping, parameters, path_evolog):
         old_index = this_allele.index
         assert(this_gene.locus == this_allele.locus)
         
-        if random.random() <= indpb:
+        if random.random() <= prob_mutate_this_allele:
             new_val = mut_poly_calc(this_allele_val, xl, xu, eta)
             new_allele = this_gene.return_closest_allele(new_val)
             new_index = new_allele.index

@@ -232,9 +232,9 @@ optimization: NSGA-II", 2002.
 
 def lastFrontSelection(last_front, k_remaining):
     logging.debug("NSGAIIR topping up with {} individuals from last front".format(k_remaining))
-    print("Last fr")
-    for i in last_front:
-        print(i.fitness.crowding_dist,i)
+    #print("Last fr")
+    #for i in last_front:
+    #    print(i.fitness.crowding_dist,i)
     
         
     
@@ -249,9 +249,9 @@ def lastFrontSelection(last_front, k_remaining):
     F_sorted_by_cd_front_unique = sorted(last_front_unique, key=attrgetter("fitness.crowding_dist"), reverse=True)
 
 
-    print("Unique")
-    for i in F_sorted_by_cd_front_unique:
-        print(i.fitness.crowding_dist,i)
+    #print("Unique")
+    #for i in F_sorted_by_cd_front_unique:
+    #    print(i.fitness.crowding_dist,i)
     #if len()
     #raise
     
@@ -313,8 +313,9 @@ def assignCrowdingDistRevisedUnique(individuals):
     # Distances are all set to 0 initially
     distances = [0.0] * len(individuals)
     crowd = [(fits, i) for i, fits in enumerate(fit_dict.keys())]
-    for c in crowd:
-        print(c)
+    
+    #for c in crowd:
+    #    print(c)
 
     #print(crowd)
     

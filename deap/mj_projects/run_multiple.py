@@ -48,7 +48,12 @@ class Tests(unittest.TestCase):
         multiple_path = r"D:\Projects\PhDprojects\Multiple"
         multiple_path = r"D:\Projects\PhDprojects\Multiple\this_test"
         #rootPath, search_name, search_ext
+        print(multiple_path)
+
         def_book_paths = util_path.get_files_by_name_ext(multiple_path,'.','xlsx')
+        print(multiple_path)
+        #raise
+        
         for path_book in def_book_paths:
             #
             script_path = r"C:\Users\jon\git\deap1\deap\mj_projects\run_proj.py"

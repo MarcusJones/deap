@@ -38,7 +38,7 @@ import sqlalchemy.orm as sa_orm
 from utility_inspect import whoami, whosdaddy, listObject
 import utility_excel as util_excel
 import utility_path as util_path
-
+import utility_GUI as util_gui
 #===============================================================================
 # Standard library
 #===============================================================================
@@ -347,8 +347,6 @@ def run_project_def(path_book):
         
         design_space = ds.DesignSpace(variables)
         
-        
-        
         # Get ObjectiveSpace
         Fitness = get_fitness(book)
         
@@ -378,7 +376,9 @@ def run_project_def(path_book):
         parameters = get_parameters(book)
         for k,v, in parameters.iteritems():
            print("{:>30} : {:<30} {}".format(k,v, type(v)))
-            
+        
+        
+        util_gui.simpleYesNo(question="Question; Yes or No?")
     #===========================================================================
     #---Mapping
     #===========================================================================
@@ -416,7 +416,7 @@ def run_project_def(path_book):
     #===========================================================================
     # Post process
     #===========================================================================
-    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
+    #util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
     
     
     
@@ -521,7 +521,6 @@ class allTests(unittest.TestCase):
         print("**** TEST {} ****".format(whoami()))
         path_book = os.path.abspath(self.curr_dir + r'\definitionbooks\nsga1_zdt1_Xbinary_Mbinary SMALL.xlsx')
         run_project_def(path_book)
-
 
     def test030_nsga1_zdt1_Xbinary_Mbinary_EXE(self):
         print("**** TEST {} ****".format(whoami()))
