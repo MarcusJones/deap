@@ -100,6 +100,7 @@ def build_structure(settings):
         assert os.path.isfile(settings['path_evolog']), "{}".format(settings['path_evolog'])
         
         return settings
+    
     elif settings['delete_folder']== 'Yes':
         raise
     else:
@@ -148,8 +149,8 @@ def build_structure(settings):
     #===========================================================================
     # Copy over the project definition file
     #===========================================================================
-    
-    shutil.copyfile(settings['path_book'], os.path.join(path_run,'definition.xlsx'))
+    settings['path_run_definition_book'] = os.path.join(path_run,'definition.xlsx')
+    shutil.copyfile(settings['path_book'], settings['path_run_definition_book'])
     
     #===========================================================================
     # Evolog
@@ -429,10 +430,8 @@ def run_project_def(path_book):
     # Post process
     #===========================================================================
     
-    #util_proc.copy_db(engine,settings['path_sql_db'])
-    
-    #util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
-    
+    util_proc.process_run_def(settings['path_run_definition_book'],settings['path_matlab'])
+    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
     
     
     #===========================================================================

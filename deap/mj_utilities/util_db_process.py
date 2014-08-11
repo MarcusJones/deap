@@ -33,6 +33,9 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 import numpy as np
 
+
+import utility_excel as util_excel
+
 from deap import design_space as ds
 
 import scipy.io as sio
@@ -295,7 +298,7 @@ def get_one_gen_stats_df(meta,gennum):
     
     df = pd.DataFrame(data=rows, columns=col_names)
     df = df[obj_cols]
-    logging.debug("Statistics for generation {}".format(gennum))
+    #logging.debug("Statistics for generation {}".format(gennum))
     return df
 
 
@@ -435,7 +438,52 @@ def get_generations_Ospace_df(meta):
     return df
 
 
+
 #--- Get all stats and write to path
+
+def process_run_def(path_excel_def, path_matlab_out):
+
+    #print(path_excel_def)
+    with util_excel.ExcelBookRead2(path_excel_def) as book:
+        final_dict = {}
+        
+        # Parameters
+        table = book.get_table('Parameters',startRow = 1)
+        mdict = {}
+        for p in table:
+            name = str(p[0])
+            name = name.replace (" ", "_")
+            mdict[name] = float(p[1])
+
+        final_dict['parameters'] = mdict
+        
+        # Algorithm
+        table = book.get_table('Algorithm',startRow = 0)
+        mdict = {}
+        for p in table:
+            name = str(p[0])
+            name = name.replace (" ", "_")
+            mdict[name] = str(p[2])
+
+        final_dict['algorithm'] = mdict
+
+        # Operators
+        table = book.get_table('Operators',startRow = 0)
+        mdict = {}
+        for p in table:
+            name = str(p[0])
+            name = name.replace (" ", "_")
+            mdict[name] = str(p[2])
+
+        final_dict['operators'] = mdict
+
+        # Save
+        sio.savemat(path_matlab_out, {'definition':final_dict}, long_field_names=True)            
+
+        
+        
+            
+            
 def process_db_to_mat(path_db,path_output):
     """Write
     -Results 
@@ -674,11 +722,11 @@ class allTests(unittest.TestCase):
     def setUp(self):
         print("**** TEST {} ****".format(whoami()))
         
-        path_db = r"sqlite:///C:\ExportDir\DB\test.sql"
-        engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
-        meta = sa.MetaData(bind = engine)
-        meta.reflect()
-        self.meta = meta
+#         path_db = r"sqlite:///C:\ExportDir\DB\test.sql"
+#         engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
+#         meta = sa.MetaData(bind = engine)
+#         meta.reflect()
+#         self.meta = meta
         
     def test000_print_tables(self):
         print("**** TEST {} ****".format(whoami()))
@@ -724,7 +772,23 @@ class allTests(unittest.TestCase):
 #             #(frame,path,name = name)
 #             write_frame_matlab(df,path,name)
 
-
+    def test050_get_excel_def(self):
+        path_excel = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1\Run000'
+        process_run_def(path_excel)
+    
+    
+    def test060_post_process_all(self):
+        run_dir = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1'
+        subdirs = util_path.list_dirs(run_dir)
+        for this_dir in subdirs:
+            path_db = os.path.join(this_dir,r'SQL\results.sql')
+            path_output = os.path.join(this_dir, 'Matlab')
+            
+            process_db_to_mat(path_db,path_output)
+            process_run_def(this_dir)
+            
+        
+        
 
 #===============================================================================
 # Main
