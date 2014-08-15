@@ -508,13 +508,17 @@ def parameterize_excel_def_from_dicts(template_path,target_path,def_table):
         this_book = book.clone(this_target_path)
         
         for mod in this_def:
-            print('This mod: {}'.format(mod))
-            print('This book: {}'.format(this_book))
-            target_row = this_book.scanDown2(mod['Sheet'], 1, 1, mod['Parameter'], limitScan=100)
-            target_col = 2
-            this_book.write_one(mod['Sheet'],target_row,target_col,mod['Value'])
+            #print('This mod: {}'.format(mod))
+            #print('This book: {}'.format(this_book))
+            with loggerCritical():
+                target_row = this_book.scanDown2(mod['Sheet'], 1, 1, mod['Parameter'], limitScan=100)
+                target_col = 2
+                this_book.write_one(mod['Sheet'], target_row, target_col, mod['Value'])
         this_book.save_and_close_no_warnings()
-             
+        
+        print('Parameterized this book: {}'.format(this_book))
+        
+                     
 # def parameterize_excel_def(template_path,target_path):
 #     logging.debug("Template file: {}".format(template_path))
 #     mod1 = ['Parameters', 'Probability crossover']
@@ -577,11 +581,11 @@ class allTests(unittest.TestCase):
     
     def test040_run_multiple_in_dir(self):
         print("**** TEST {} ****".format(whoami()))
-        raise  
+        #raise  
     
         #multiple_path = r"D:\Projects\PhDprojects\Multiple"
         #multiple_path = r"D:\Projects\PhDprojects\Multiple\this_test"
-        multiple_path = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1\\'
+        multiple_path = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy2\\'
         #rootPath, search_name, search_ext
         def_book_paths = util_path.get_files_by_name_ext(multiple_path,'.','xlsx')
         for path_book in def_book_paths:
@@ -614,12 +618,13 @@ class allTests(unittest.TestCase):
         mods = list()
         mods.append(['Parameters', 'Population size', [20,40, 80]])
         mods.append(['Parameters', 'Generations', [250]])
+
         mods.append(['Parameters', 'Probability crossover individual', [0,0.5,1]])
-        #mods.append(['Parameters', 'Probability crossover individual', [1]])
-        mods.append(['Parameters', 'Probability crossover allele', [0,0.03,0.1,0.2]])
-        mods.append(['Parameters', 'Probability mutation individual', [0,0.5,1,0.2]])
-        #mods.append(['Parameters', 'Probability mutation individual', [1]])
-        mods.append(['Parameters', 'Probability mutation allele', [0.01,0.03,0.1]])
+        mods.append(['Parameters', 'Probability crossover allele', [0, 0.03, 0.1, 0.5]])
+        
+        mods.append(['Parameters', 'Probability mutation individual', [0, 0.5, 1]])
+        mods.append(['Parameters', 'Probability mutation allele', [0, 0.03, 0.1, 0.5]])
+        
         mods.append(['Parameters', 'Crowding degree', [10,20,40]])
         
         #=======================================================================
