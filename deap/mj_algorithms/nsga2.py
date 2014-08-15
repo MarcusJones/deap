@@ -171,7 +171,7 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         #--- Crossover
         #=======================================================================
         logging.debug("Varying generation {}".format(gen))
-        
+        t_cx_start  = time.time() 
         pairs = zip(cloned_parents[::2], cloned_parents[1::2])
         
         with loggerCritical():
@@ -188,10 +188,14 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
         
         this_gen_evo['Mated offspring'] = util.get_gen_evo_dict_entry(offspring)
         logging.debug("Crossover complete".format())
+        
+        t_cx_elapsed = time.time() - t_cx_start 
+        logging.debug("Crossover time {:0.2} seconds".format(t_cx_elapsed))
 
         #=======================================================================
         #--- Mutate
         #=======================================================================
+        t_mu_start = time.time()
         #with loggerCritical():
         with loggerDebug():
             mutated_offspring = list()
@@ -204,10 +208,14 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
                 mutated_offspring.append(ind_hash)
         this_gen_evo['Mutated offspring'] = util.get_gen_evo_dict_entry(mutated_offspring)
         logging.debug("Mutation complete".format())
+        
+        t_mu_elapsed = time.time() - t_mu_start 
+        logging.debug("Mutation time {:0.2} seconds".format(t_mu_elapsed))
             
         #=======================================================================
         #--- Evaluate the individual_hashes
         #=======================================================================
+        t_eval_start = time.time()
         logging.debug("Evaluating generation {}".format(gen))
         cloned_offspring = [ind_hash.clone() for ind_hash in mutated_offspring]
         eval_offspring, eval_count = util.evaluate_pop(cloned_offspring,session,Results,mapping,settings)
@@ -216,7 +224,9 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
             assert ind_hash.fitness.valid, "{}".format(ind_hash)
         for ind_hash in eval_offspring:
             assert ind_hash.fitness.valid, "{}".format(ind_hash)
-
+        t_eval_elapsed = time.time() - t_eval_start 
+        logging.debug("Evaluation time {:0.3} seconds".format(t_eval_elapsed))
+            
         #=======================================================================
         #--- Select the next generation population
         #=======================================================================
@@ -259,8 +269,8 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
 
         t_gen_end = time.time()
         elapsed = t_gen_end - t_gen_start 
-        logging.debug("Generation {} completed after {}".format(gen,elapsed))
-
+        logging.debug("Generation {} completed after {:0.2} seconds".format(gen,elapsed))
+    
     #---Finished generation
 
 def showconvergence(pop):

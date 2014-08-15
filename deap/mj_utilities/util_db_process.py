@@ -24,29 +24,170 @@ myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
 import unittest
 
-import pandas as pd
+#===============================================================================
+# Standard
+#===============================================================================
+from math import hypot, sqrt
+import json
+from deap import design_space as ds
+from collections import defaultdict
 
+#===============================================================================
+# Utility
+#===============================================================================
 import utility_path as util_path
 from utility_inspect import whoami, whosdaddy, listObject
 import utility_SQL_alchemy as util_sa
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
-import numpy as np
-
-
+import deap.benchmarks.tools as deap_tools
 import utility_excel as util_excel
 
-from deap import design_space as ds
-
+#===============================================================================
+# External
+#===============================================================================
+import pandas as pd
+import sqlalchemy as sa
+#from sqlalchemy.orm import sessionmaker
+import numpy as np
 import scipy.io as sio
+
+
+
+#===============================================================================
+# 
+#===============================================================================
 
 def lister(item):
     for i in dir(item):
         print("{:>40} - {}".format(item, i))
 
+
+
+
 #===============================================================================
 # Code
 #===============================================================================
+def diversity(first_front, first, last):
+    """Given a Pareto front `first_front` and the two extreme points of the 
+    optimal Pareto front, this function returns a metric of the diversity 
+    of the front as explained in the original NSGA-II article by K. Deb.
+    The smaller the value is, the better the front is.
+    """
+    df = hypot(first_front[0][0] - first[0],
+               first_front[0][1] - first[1])
+    dl = hypot(first_front[-1][0] - last[0],
+               first_front[-1][1] - last[1])
+    dt = [hypot(first[0] - second[0],
+                first[1] - second[1])
+          for first, second in zip(first_front[:-1], first_front[1:])]
+
+    if len(first_front) == 1:
+        return df + dl
+
+    dm = sum(dt)/len(dt)
+    di = sum(abs(d_i - dm) for d_i in dt)
+    delta = (df + dl + di)/(df + dl + len(dt) * dm )
+    return delta
+
+def convergence(first_front, optimal_front):
+    """Given a Pareto front `first_front` and the optimal Pareto front, 
+    this function returns a metric of convergence
+    of the front as explained in the original NSGA-II article by K. Deb.
+    The smaller the value is, the closer the front is to the optimal one.
+    """
+    distances = []
+    
+    for ind in first_front:
+        distances.append(float("inf"))
+        for opt_ind in optimal_front:
+            dist = 0.
+            for i in xrange(len(opt_ind)):
+                dist += (ind[i] - opt_ind[i])**2
+            if dist < distances[-1]:
+                distances[-1] = dist
+        distances[-1] = sqrt(distances[-1])
+        
+    return sum(distances) / len(distances)
+
+
+def dominates(first, other):
+    """Return true if each objective of *self* is not strictly worse than 
+    the corresponding objective of *other* and at least one objective is 
+    strictly better.
+
+    :param obj: Slice indicating on which objectives the domination is 
+                tested. The default value is `slice(None)`, representing
+                every objectives.
+    """
+    not_equal = False
+    for self_wvalue, other_wvalue in zip(first, other):
+        if self_wvalue > other_wvalue:
+            not_equal = True
+        elif self_wvalue < other_wvalue:
+            return False                
+    return not_equal
+
+def dominates_min(first, other):
+    """Return true if each objective of *self* is not strictly worse than 
+    the corresponding objective of *other* and at least one objective is 
+    strictly better.
+
+    :param obj: Slice indicating on which objectives the domination is 
+                tested. The default value is `slice(None)`, representing
+                every objectives.
+    """
+    not_equal = False
+    for self_wvalue, other_wvalue in zip(first, other):
+        if self_wvalue < other_wvalue:
+            not_equal = True
+        elif self_wvalue > other_wvalue:
+            return False                
+    return not_equal
+
+
+def df_sortNondominated_pareto_MIN(fits):
+    """Sort the first *k* *individuals* into different nondomination levels
+    using the "Fast Nondominated Sorting Approach" proposed by Deb et al.,
+    see [Deb2002]_. This algorithm has a time complexity of :math:`O(MN^2)`,
+    where :math:`M` is the number of objectives and :math:`N` the number of
+    individuals.
+   
+    :param individuals: A list of individuals to select from.
+    :param k: The number of individuals to select.
+    :param first_front_only: If :obj:`True` sort only the first front and
+                             exit.
+    :returns: A list of Pareto fronts (lists), the first list includes
+              nondominated individuals.
+
+    .. [Deb2002] Deb, Pratab, Agarwal, and Meyarivan, "A fast elitist
+       non-dominated sorting genetic algorithm for multi-objective
+       optimization: NSGA-II", 2002.
+    """
+
+    fits = [tuple(row) for row in fits]
+    fits = list(set(fits))
+    current_front = []
+    next_front = []
+    
+    dominating_fits = defaultdict(int)
+    dominated_fits = defaultdict(list)
+   
+    # Rank first Pareto front
+    for i, fit_i in enumerate(fits):
+        for fit_j in fits[i+1:]:
+            
+            if dominates_min(fit_i, fit_j):
+                dominating_fits[fit_j] += 1
+                dominated_fits[fit_i].append(fit_j)
+            elif dominates_min(fit_j,fit_i):
+                dominating_fits[fit_i] += 1
+                dominated_fits[fit_j].append(fit_i)
+
+        if dominating_fits[fit_i] == 0:
+            current_front.append(fit_i)
+
+    return(current_front)        
+
+
 def copy_db(old_engine, new_path):
     print(old_engine)
     print(new_path)
@@ -249,7 +390,7 @@ def get_generations_list(meta):
 
 
 #--- Complex queries and DataFrames
-def get_all_gen_stats_df(meta):
+def get_all_gen_stats_df(meta,opt_front):
     """Loop over all generations, return summary stats DF
     """
     logging.debug("Calculating statistics".format())
@@ -263,25 +404,65 @@ def get_all_gen_stats_df(meta):
     df_std = list()
     df_max = list()
     df_min = list()
+    list_convergence = list()
+    list_diversity = list()
     for num in gennums:
-        df = get_one_gen_stats_df(meta,num)
+        df = get_one_gen_objectives_df(meta,num)
         #stats_df['mean'] = df.mean() 
         df_mean.append(df.mean())
         df_std.append(df.std())
         df_max.append(df.max())
         df_min.append(df.min())
+        #print(df)
         
+        fits = df.as_matrix()
+        pareto_front = df_sortNondominated_pareto_MIN(fits)
+        list_convergence.append(convergence(pareto_front, opt_front))
+        list_diversity.append(diversity(pareto_front, opt_front[0],opt_front[-1]))
+        #deap_tools.convergence(first_front, optimal_front)
+        #print()
+        #print()
+    #print(list_convergence)
+    #print(list_diversity)
+    
+    
+    #===========================================================================
+    # Global stats
+    #===========================================================================
+    df = get_all_gen_objectives_df(meta)
+    #print(df)
+    fits = df.as_matrix()
+    pareto_front = df_sortNondominated_pareto_MIN(fits)
+    global_convergence = convergence(pareto_front, opt_front)
+    global_diversity = diversity(pareto_front, opt_front[0],opt_front[-1])
+
+    global_df = pd.DataFrame([[global_convergence, global_diversity]],columns=['convergence','diversity'])
+
+    #===========================================================================
+    # Save as dict
+    #===========================================================================
     stats['mean'] = pd.concat(df_mean, axis = 1).T
     stats['std'] = pd.concat(df_std, axis = 1).T
     stats['min'] = pd.concat(df_min, axis = 1).T
     stats['max'] = pd.concat(df_max, axis = 1).T
-
+    stats['convergence'] = pd.DataFrame(list_convergence)
+    stats['convergence'].columns = ['convergence']
+    
+    stats['diversity'] = pd.DataFrame(list_diversity)
+    stats['diversity'].columns = ['diversity']
+    
+    df_global_pareto = pd.DataFrame(pareto_front)
+    df_global_pareto.columns= stats['mean'].columns
+    stats['global_pareto'] = df_global_pareto
+    
+    stats['global_results'] = global_df
     
     return(stats)
 
-def get_one_gen_stats_df(meta,gennum):
+def get_one_gen_objectives_df(meta, gennum):
     """Get DF from GENERATIONS join RESULTS for gennum
     """
+    
     engine = meta.bind
     qry = get_generations_qry(meta)
     qry = qry.where("Generations.gen == {}".format(gennum))
@@ -300,6 +481,31 @@ def get_one_gen_stats_df(meta,gennum):
     df = df[obj_cols]
     #logging.debug("Statistics for generation {}".format(gennum))
     return df
+
+def get_all_gen_objectives_df(meta):
+    """Get DF from GENERATIONS join RESULTS for gennum
+    """
+    
+    engine = meta.bind
+    qry = get_generations_qry(meta)
+    print(qry)
+
+    obj_cols = list()
+    for name in get_objective_names(meta):
+        obj_cols.append("Results_obj_c_{}".format(name))
+        
+    
+    res = engine.execute(qry)
+    
+    rows = res.fetchall()
+    col_names = res.keys()
+    
+    df = pd.DataFrame(data=rows, columns=col_names)
+    df = df[obj_cols]
+    
+    
+    return df
+
 
 
 def get_results_df(meta):
@@ -484,7 +690,7 @@ def process_run_def(path_excel_def, path_matlab_out):
         
             
             
-def process_db_to_mat(path_db,path_output):
+def process_db_to_mat(path_db,path_output, path_optimal = None):
     """Write
     -Results 
     -Generations
@@ -496,6 +702,13 @@ def process_db_to_mat(path_db,path_output):
     engine = sa.create_engine(path_db, echo=0, listeners=[util_sa.ForeignKeysListener()])
     meta = sa.MetaData(bind = engine)
     meta.reflect()
+    
+    if path_optimal:
+        optimal_front = None
+        with open(path_optimal) as optimal_front_data:
+            optimal_front = json.load(optimal_front_data)
+        # Use 500 of the 1000 points in the json file
+        opt_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
     
     #===========================================================================
     # Results dump
@@ -512,19 +725,24 @@ def process_db_to_mat(path_db,path_output):
     name = 'generations'
     path = os.path.join(path_output,"{}.mat".format(name))
     write_frame_matlab(df,path,name)
-
     
+
     #===========================================================================
     # Statistics on generations
     #===========================================================================
-    stats = get_all_gen_stats_df(meta)
+    stats = get_all_gen_stats_df(meta,opt_front)
     for name,df in stats.iteritems():
         path = os.path.join(path_output,"{}.mat".format(name))
         #path = r"c:\ExportDir\Mat\{}.mat".format(name)
         #print(name,v)
         #(frame,path,name = name)
-        write_frame_matlab(df,path,name)    
+        write_frame_matlab(df,path,name)
 
+        #print(df)
+    #raise
+    #import diversity, convergence
+    #print(df)
+    #raise
 
 #--- OLD
 def old(session):
@@ -776,7 +994,11 @@ class allTests(unittest.TestCase):
         path_excel = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1\Run000'
         process_run_def(path_excel)
     
-    
+    def test090_post_one(self):
+        path_db = r'c:\TestProjectRoot\Run524\SQL\results.sql'
+        path_opt = r'C:\Users\jon\git\deap1\examples\ga\pareto_front\zdt1_front.json'
+        process_db_to_mat(path_db, r"c:\TestProjectRoot\Run524\Matlab\\")
+        
     def test060_post_process_all(self):
         run_dir = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1'
         subdirs = util_path.list_dirs(run_dir)

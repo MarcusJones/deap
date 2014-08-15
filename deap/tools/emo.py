@@ -215,7 +215,7 @@ optimization: NSGA-II", 2002.
         pareto_fronts = sortNondominated(individuals, k)
 
     for i,front in enumerate(pareto_fronts):
-        logging.debug("Crowding distance calculation front {}, {} individuals".format(i,len(individuals)))
+        #logging.debug("Crowding distance calculation front {}, {} individuals".format(i,len(individuals)))
         assignCrowdingDistRevisedUnique(front)
         
     chosen = list(chain(*pareto_fronts[:-1]))

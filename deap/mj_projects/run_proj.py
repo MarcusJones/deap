@@ -99,6 +99,8 @@ def build_structure(settings):
         assert os.path.exists(settings['run_full_path']), "{}".format(settings['path_matlab'])
         assert os.path.isfile(settings['path_evolog']), "{}".format(settings['path_evolog'])
         
+        assert os.path.isfile(settings['path_opt_front']), "{}".format(settings['path_evolog'])
+        
         return settings
     
     elif settings['delete_folder']== 'Yes':
@@ -306,8 +308,11 @@ def get_objectives(fitness):
 #===============================================================================
 
 def run_project_def(path_book):
-    with util_excel.ExcelBookRead2(path_book) as book:         
+    with util_excel.ExcelBookRead2(path_book) as book:
+             
         print("Running this book: {}".format(book))
+        start_time = time.time()
+        
         #===========================================================================
         #---Settings
         #===========================================================================
@@ -423,17 +428,16 @@ def run_project_def(path_book):
                       session=session,
                       Results=Results)
      
-    
-    
-
     #===========================================================================
     # Post process
     #===========================================================================
     
     util_proc.process_run_def(settings['path_run_definition_book'],settings['path_matlab'])
-    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'])
+    util_proc.process_db_to_mat(settings['path_sql_db'],settings['path_matlab'],settings['path_opt_front '])
     
-    
+    elapsed = time.time() - start_time
+    logging.debug("Finished run after {} seconds".format(elapsed))
+
     #===========================================================================
     #---asdf
     #===========================================================================
@@ -496,32 +500,46 @@ def parameterize_excel_def_from_table(template_path,target_path,def_table):
             this_book.write_one(mod[0],target_row,target_col,mod[2])
         this_book.save_and_close_no_warnings()
             
-    
-def parameterize_excel_def(template_path,target_path):
-    logging.debug("Template file: {}".format(template_path))
-    mod1 = ['Parameters', 'Probability crossover']
-    mod1 = [mod1 + [this_p] for this_p in my_range(0.1, 1, 0.1)]
-    mod1 = mod1 * 10
-
-    modifications = list()
-    for row in mod1:
-        modifications.append(dict(zip(['Sheet', 'Parameter', 'Value'],row)))
-    
-    for row in  modifications:
-        print(row)
-    #raise
-    
-    for i,mod in enumerate(modifications):
-        print('This mod: {}'.format(mod))
+def parameterize_excel_def_from_dicts(template_path,target_path,def_table):
+    for i,this_def in enumerate(def_table):
         name = 'Definition'+str(i)+'.xlsx'
         with util_excel.ExcelBookAPI(template_path) as book:            
             this_target_path = os.path.join(target_path,name)
         this_book = book.clone(this_target_path)
-        print('This book: {}'.format(this_book))
-        target_row = this_book.scanDown2(mod['Sheet'], 1, 1, mod['Parameter'], limitScan=100)
-        target_col = 2
-        this_book.write_one(mod['Sheet'],target_row,target_col,mod['Value'])
+        
+        for mod in this_def:
+            print('This mod: {}'.format(mod))
+            print('This book: {}'.format(this_book))
+            target_row = this_book.scanDown2(mod['Sheet'], 1, 1, mod['Parameter'], limitScan=100)
+            target_col = 2
+            this_book.write_one(mod['Sheet'],target_row,target_col,mod['Value'])
         this_book.save_and_close_no_warnings()
+             
+# def parameterize_excel_def(template_path,target_path):
+#     logging.debug("Template file: {}".format(template_path))
+#     mod1 = ['Parameters', 'Probability crossover']
+#     mod1 = [mod1 + [this_p] for this_p in my_range(0.1, 1, 0.1)]
+#     mod1 = mod1 * 10
+# 
+#     modifications = list()
+#     for row in mod1:
+#         modifications.append(dict(zip(['Sheet', 'Parameter', 'Value'],row)))
+#     
+#     for row in  modifications:
+#         print(row)
+#     #raise
+#     
+#     for i,mod in enumerate(modifications):
+#         print('This mod: {}'.format(mod))
+#         name = 'Definition'+str(i)+'.xlsx'
+#         with util_excel.ExcelBookAPI(template_path) as book:            
+#             this_target_path = os.path.join(target_path,name)
+#         this_book = book.clone(this_target_path)
+#         print('This book: {}'.format(this_book))
+#         target_row = this_book.scanDown2(mod['Sheet'], 1, 1, mod['Parameter'], limitScan=100)
+#         target_col = 2
+#         this_book.write_one(mod['Sheet'],target_row,target_col,mod['Value'])
+#         this_book.save_and_close_no_warnings()
 
 
 #===============================================================================
@@ -581,26 +599,26 @@ class allTests(unittest.TestCase):
         path_mlab = r"D:\Projects\PhDprojects\testZDT1exe\Run168\Matlab"
         util_proc.process_db_to_mat(path_sql,path_mlab)
         
-    def test200_parameterize_excel(self):
-        path_template = r'D:\Projects\PhDprojects\Multiple\Template1.xlsx'
-        path_target_dir = r'D:\Projects\PhDprojects\Multiple\this_test\\'
-        parameterize_excel_def(path_template,path_target_dir)
+#     def test200_parameterize_excel(self):
+#         path_template = r'D:\Projects\PhDprojects\Multiple\Template1.xlsx'
+#         path_target_dir = r'D:\Projects\PhDprojects\Multiple\this_test\\'
+#         parameterize_excel_def(path_template,path_target_dir)
 
     def test210_parameterize_excel_table_version(self):
-        path_template = r'D:\Projects\PhDprojects\Multiple\ExploreStudy1 nsga1_zdt1_Xbinary_Mbinary.xlsx'
-        path_target_dir = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy1\\'
+        path_template = r'D:\Projects\PhDprojects\Multiple\template nsga1_zdt1_Xbinary_Mbinary.xlsx'
+        path_target_dir = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy2\\'
         
         #=======================================================================
         # Possible values of parameters
         #=======================================================================
         mods = list()
-        mods.append(['Parameters', 'Population size', [20, 40, 100]])
+        mods.append(['Parameters', 'Population size', [20,40, 80]])
         mods.append(['Parameters', 'Generations', [250]])
-        #mods.append(['Parameters', 'Probability crossover individual', [0,0.5,1]])
-        mods.append(['Parameters', 'Probability crossover individual', [1]])
-        mods.append(['Parameters', 'Probability crossover allele', [0.01,0.03,0.1]])
-        #mods.append(['Parameters', 'Probability mutation individual', [0,0.5,1]])
-        mods.append(['Parameters', 'Probability mutation individual', [1]])
+        mods.append(['Parameters', 'Probability crossover individual', [0,0.5,1]])
+        #mods.append(['Parameters', 'Probability crossover individual', [1]])
+        mods.append(['Parameters', 'Probability crossover allele', [0,0.03,0.1,0.2]])
+        mods.append(['Parameters', 'Probability mutation individual', [0,0.5,1,0.2]])
+        #mods.append(['Parameters', 'Probability mutation individual', [1]])
         mods.append(['Parameters', 'Probability mutation allele', [0.01,0.03,0.1]])
         mods.append(['Parameters', 'Crowding degree', [10,20,40]])
         
@@ -610,24 +628,53 @@ class allTests(unittest.TestCase):
         expanded_mods = list()
         for m in mods:
             expanded_mods.append(([[m[0], m[1], val] for val in m[2]]))
-            
+            #print(m)
+        #raise
         #=======================================================================
         # Cartesian product
         #=======================================================================
         res = itertools.product(*expanded_mods)
+        
         final_defs = list()
-        for r in res: 
+        for r in res:
+            #print(r) 
             final_defs.append(r)
         
         mod_dicts = list()
         for row in final_defs:
             #print(row)
-            mod_dicts.append(dict(zip(['Sheet', 'Parameter', 'Value'],row)))
-            #print(mod_dicts[0])
             #raise
+            changes = list()
+            for change in row:
+                this_dict = dict(zip(['Sheet', 'Parameter', 'Value'],change))
+                #print(this_dict)
+                #raise
+                changes.append(this_dict)
+            mod_dicts.append(changes)
+            
+        print('Raw parameter vectors',len(mod_dicts))
+        # Remove all cases where 
+        for row in mod_dicts:
+            for change in row:
+                #print(change)
+                if change['Parameter'] == 'Probability crossover individual' and change['Value'] == 0:
+                    for change in row:                    
+                        if change['Parameter'] == 'Probability crossover allele' and change['Value'] != 0:
+                            mod_dicts.remove(row)
+                            
+                if change['Parameter'] == 'Probability mutation individual' and change['Value'] == 0:
+                    for change in row:                    
+                        if change['Parameter'] == 'Probability mutation allele' and change['Value'] != 0:
+                            try:
+                                mod_dicts.remove(row)
+                            except:
+                                pass                            
+                    #print(change)
+        print('After removal',len(mod_dicts))                    
         
-        #raise
-        parameterize_excel_def_from_table(path_template,path_target_dir,final_defs)
+        parameterize_excel_def_from_dicts(path_template,path_target_dir,mod_dicts)
+        
+        #parameterize_excel_def_from_table(path_template,path_target_dir,final_defs)
 
 
 
