@@ -286,7 +286,7 @@ def print_tables(session):
         print(this_table)
         print(this_table.foreign_keys)
 
-def write_frame_matlab(frame,path,name = 'df'):
+def write_frame_matlab(frame,path, name = 'df'):
     mdict = {}
 
     # First get the index from the pandas frame as a regular datetime
@@ -1009,8 +1009,66 @@ class allTests(unittest.TestCase):
             process_db_to_mat(path_db,path_output)
             process_run_def(this_dir)
             
+    def test070_collect_runs(self):
+        run_dir = r'D:\Projects\PhDprojects\Multiple\ExplorationStudy2'
+        subdirs = util_path.list_dirs(run_dir)
+        values_list = list()
+        headers_list = list()
+        for this_dir in subdirs:
+            path_matlab = os.path.join(this_dir, 'Matlab.mat')
+
+            mat_dict = {}
+            mat_dict.update(sio.loadmat(path_matlab))
+            
+            parameters = mat_dict['definition']['parameters']
+            values = mat_dict['definition']['parameters'][0][0]
+            headers_list.append(values.dtype.names)
+            #raise
+            values = values[0][0]
+            values = [val[0][0] for val in values]
+            values_list.append(values)
+        logging.debug("Finished getting definitions")
+        headers_list = set(headers_list)
+        assert len(headers_list) == 1
+        headers_list = list(headers_list)[0]
+
+        df_indicators = pd.DataFrame(data = values_list, columns = headers_list)
+        results = list()
+        for this_dir in subdirs:
+            # Convergence
+            path_matlab = os.path.join(this_dir, 'Matlab', 'convergence.mat')
+            mat_dict = {}
+            mat_dict.update(sio.loadmat(path_matlab))
+            convergence = mat_dict['convergence'][0][0][1].tolist()[-1][0]
+            
+            # Diversity 
+            path_matlab = os.path.join(this_dir, 'Matlab', 'diversity.mat')
+            mat_dict = {}
+            mat_dict.update(sio.loadmat(path_matlab))
+            diversity = mat_dict['diversity'][0][0][1].tolist()[-1][0]
+
+            # Global convergence, diversity
+            path_matlab = os.path.join(this_dir, 'Matlab', 'global_results.mat')
+            mat_dict = {}
+            mat_dict.update(sio.loadmat(path_matlab))
+            global_results = mat_dict['global_results'][0][0][1].tolist()[0]
+            global_convergence = global_results[0]
+            global_diversity = global_results[1]
+            results.append([convergence,diversity,global_convergence,global_diversity])
+            
+        logging.debug("Finished getting results")
+        
+
+        this_header = ['convergence', 'diversity', 'global_convergence', 'global_diversity']
+        df_results = pd.DataFrame(data = results, columns = this_header)
+        
+        # Combine and write
+        combined_frame = pd.concat([df_indicators,df_results], axis=1)
+        write_frame_matlab(combined_frame,os.path.join(run_dir, 'run summary.mat'))
+        #logging.debug("Finished getting results")
         
         
+
 
 #===============================================================================
 # Main
