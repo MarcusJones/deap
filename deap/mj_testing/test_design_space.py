@@ -10,7 +10,7 @@ from config import *
 import logging.config
 import unittest
 
-from utility_inspect import whoami, whosdaddy, listObject
+from ExergyUtilities.utility_inspect import get_self, get_parent
 
 # Testing imports
 from ..design_space import Variable, DesignSpace
@@ -28,11 +28,11 @@ myLogger.setLevel("DEBUG")
 
 class DesignSpaceBasicTests(unittest.TestCase):
     def setUp(self):
-        #print "**** TEST {} ****".format(whoami())
+        #print "**** TEST {} ****".format(get_self())
         myLogger.setLevel("CRITICAL")
         print("Setup")
         myLogger.setLevel("DEBUG")
 
     def test010_SimpleCreation(self):
-        print("**** TEST {} ****".format(whoami()))
+        print("**** TEST {} ****".format(get_self()))
 

@@ -3,7 +3,7 @@
 	<name>deap1</name>
 	<comment></comment>
 	<projects>
-		<project>MyUtilities</project>
+		<project>ExergyUtilities</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
