@@ -38,9 +38,9 @@ import sqlalchemy.orm as sa_orm
 # Utilities
 #===============================================================================
 from utility_inspect import whoami, whosdaddy, listObject
-import utility_excel as util_excel
-import utility_path as util_path
-import utility_GUI as util_gui
+import utility_excelOLD as util_excel
+import utility_pathOLD as util_path
+from src import utility_GUI as util_gui
 #===============================================================================
 # Standard library
 #===============================================================================
