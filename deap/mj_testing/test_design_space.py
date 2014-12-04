@@ -10,7 +10,7 @@ from config import *
 import logging.config
 import unittest
 
-from ExergyUtilities.utility_inspect import get_self, get_parent
+from exergy_frame.tests.utility_inspect import get_self, get_parent
 
 # Testing imports
 from ..design_space import Variable, DesignSpace
