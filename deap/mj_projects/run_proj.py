@@ -7,14 +7,12 @@ Etc.
 # Standard:
 from __future__ import division
 from __future__ import print_function
-from deap.mj_config.deapconfig import *
 import time
 import itertools
 
 #===============================================================================
 # Internal
 #===============================================================================
-import utility_SQL_alchemy as util_sa
 import deap as dp
 import deap.design_space as ds
 import deap.mj_utilities.util_db_process as util_proc
@@ -30,10 +28,11 @@ import sqlalchemy.orm as sa_orm
 #===============================================================================
 # Utilities
 #===============================================================================
-from utility_inspect import whoami, whosdaddy, listObject
-import utility_excelOLD as util_excel
-import utility_pathOLD as util_path
-from src import utility_GUI as util_gui
+#from utility_inspect import whoami, whosdaddy, listObject
+from ExergyUtilities import utility_SQL_alchemy as util_sa
+from ExergyUtilities import utility_excel as util_excel
+from ExergyUtilities import utility_path as util_path
+from ExergyUtilities import utility_GUI as util_gui
 #===============================================================================
 # Standard library
 #===============================================================================
@@ -49,10 +48,6 @@ import os
 #===============================================================================
 import logging.config
 from UtilityLogger import loggerCritical,loggerDebug
-
-logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-myLogger = logging.getLogger()
-myLogger.setLevel("DEBUG")
 
 #===============================================================================
 #--- Settings
@@ -542,23 +537,7 @@ def parameterize_excel_def_from_dicts(template_path,target_path,def_table):
 #===============================================================================
 # Main
 #===============================================================================
-if __name__ == "__main__":
-    print(ABSOLUTE_LOGGING_PATH)
-    logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-    print("Start")
-    
-    assert sys.argv
-    for arg in sys.argv:
-        print("Argument:",arg)
-        
-    
-    assert len(sys.argv) == 2
-    print("Received arguments: {}".format(sys.argv))
-    path_this_module = sys.argv[0]
-    path_book = sys.argv[1]
-    run_project_def(path_book)
-    
-    print("Complete")
+
     #    print
     #
     #raise

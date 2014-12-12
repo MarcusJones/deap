@@ -1,6 +1,6 @@
 import os
 import shutil
-import utility_file as util_file
+import ExergyUtilities.utility_path as util_path
 from math import sqrt
 import subprocess
 import datetime
@@ -52,7 +52,7 @@ def pre_process_exe(self, settings):
     #===========================================================================
     # Apply changes
     #===========================================================================
-    input_file_obj = util_file.FileObject(self.path_input_file)
+    input_file_obj = util_path.FileObject(self.path_input_file)
     
     replacements = list()
     for allele in self.chromosome:
@@ -62,7 +62,7 @@ def pre_process_exe(self, settings):
         
     #print(replacements)
     with loggerCritical():
-        input_file_obj.makeReplacements(replacements)
+        input_file_obj.make_replacements(replacements)
 
     input_file_obj.writeFile(input_file_obj.filePath)
     

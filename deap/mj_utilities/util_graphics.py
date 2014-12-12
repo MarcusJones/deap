@@ -21,9 +21,6 @@ from config import *
 import logging.config
 import unittest
 
-from utility_inspect import whoami, whosdaddy, listObject
-
-
 import numpy as np
 import matplotlib
 

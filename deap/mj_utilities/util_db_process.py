@@ -35,11 +35,12 @@ from collections import defaultdict
 #===============================================================================
 # Utility
 #===============================================================================
-import utility_pathOLD as util_path
-from utility_inspect import whoami, whosdaddy, listObject
-import utility_SQL_alchemy as util_sa
+from ExergyUtilities import utility_path as util_path
+
+from ExergyUtilities import utility_SQL_alchemy as util_sa
+from ExergyUtilities import utility_excel as util_excel
 import deap.benchmarks.tools as deap_tools
-import utility_excelOLD as util_excel
+
 
 #===============================================================================
 # External

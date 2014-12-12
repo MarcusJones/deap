@@ -18,7 +18,6 @@ from __future__ import division
 from __future__ import print_function
 
 # Setup
-from mj_config.deapconfig import *
 import logging.config
 
 # Standard library
@@ -43,14 +42,6 @@ from copy import deepcopy
 from mj_utilities.db_base import DB_Base
 
 from operator import mul, truediv
-
-#===============================================================================
-# Logging
-#===============================================================================
-logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-myLogger = logging.getLogger()
-myLogger.setLevel("DEBUG")
-
 #===============================================================================
 # Code
 #===============================================================================

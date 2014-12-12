@@ -18,12 +18,9 @@
 #===============================================================================
 from __future__ import division
 from __future__ import print_function
-from deap.mj_config.deapconfig import *
 
-import logging.config
-logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
-myLogger = logging.getLogger()
-myLogger.setLevel("DEBUG")
+import logging
+
 from UtilityLogger import loggerCritical,loggerDebug
 
 #===============================================================================
@@ -31,12 +28,12 @@ from UtilityLogger import loggerCritical,loggerDebug
 #===============================================================================
 import deap.mj_utilities.util_db_process as util_dbproc
 from deap.mj_utilities.util_graphics import print_res
-import utility_SQL_alchemy as util_sa
+import ExergyUtilities.utility_SQL_alchemy as util_sa 
 from deap.mj_utilities.db_base import DB_Base
 import deap.mj_utilities.util_general as util
 
 
-import utility_pathOLD as util_path
+import ExergyUtilities.utility_path as util_path
 
 #===============================================================================
 # Standard
