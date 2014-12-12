@@ -10,15 +10,16 @@ from config import *
 import logging.config
 import unittest
 
-from exergy_frame.tests.utility_inspect import get_self, get_parent
+from ExergyUtilities.utility_inspect import get_self, get_parent
 
 # Testing imports
-from ..design_space import Variable, DesignSpace
+from deap import design_space
 
 #===============================================================================
 # Logging
 #===============================================================================
-logging.config.fileConfig(ABSOLUTE_LOGGING_PATH)
+import logging
+logging.basicConfig(format='%(funcName)-20s %(levelno)-3s: %(message)s', level=logging.DEBUG, datefmt='%I:%M:%S')
 myLogger = logging.getLogger()
 myLogger.setLevel("DEBUG")
 

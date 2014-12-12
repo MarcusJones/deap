@@ -20,6 +20,6 @@ __revision__ = "1.1.0"
 
 import creator
 import base
-#import mj_utilities
-#import design_space
+import mj_utilities
+import design_space
 #import db_base
