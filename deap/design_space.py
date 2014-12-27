@@ -69,7 +69,7 @@ def generate_chromosome(basis_set):
 
 #--- Database interaction
 def convert_DB_individual(res, mapping):
-    """Given a Results object from the database, recreate the Individual object
+    """Given a Results object from the database, recreate the individual object
     """
     chromosome = list()
     for var in mapping.design_space.basis_set:
@@ -86,7 +86,7 @@ def convert_DB_individual(res, mapping):
     this_fit = mapping.fitness()
     this_fit.setValues(fitvals)
 
-    this_ind = mapping.Individual(chromosome=chromosome, 
+    this_ind = mapping.individual(chromosome=chromosome, 
                                 fitness=this_fit
                                 )
 
@@ -153,7 +153,7 @@ def generate_ORM_individual(mapping):
 def generate_variable_table_class(name):
     """This is a helper function which dynamically creates a new ORM enabled class
     The table will hold the individual values of each variable
-    Individual values are stored as a string
+    individual values are stored as a string
     """
 
     class NewTable( DB_Base ):
@@ -773,10 +773,10 @@ class DesignSpace(object):
 
 
 
-class Individual2(list):
+class Individual(list):
     """An individual is composed of a list of alleles (chromosome)
     Each gene is an instance of the Variable class
-    The Individual class inherits list (slicing, assignment, mutability, etc.)
+    The individual class inherits list (slicing, assignment, mutability, etc.)
     """
     def __init__(self, chromosome, fitness):
         
@@ -792,7 +792,7 @@ class Individual2(list):
                 list_items.append(gene.val_str)
             else:
                 raise Exception("{}".format(gene.vtype))
-        super(Individual2, self).__init__(list_items)
+        super(individual, self).__init__(list_items)
         
         self.chromosome = chromosome
         self.fitness = fitness
@@ -802,7 +802,7 @@ class Individual2(list):
         self.finish_time = None
         #self.hash = self.__hash__()
         
-        #logging.debug("Individual instantiated; {}".format(self))
+        #logging.debug("individual instantiated; {}".format(self))
         
     @property    
     def hash(self):
@@ -814,7 +814,7 @@ class Individual2(list):
         for allele in self.chromosome:
             new_chromo.append(Allele(allele.name, allele.locus, allele.vtype, allele.value, allele.index, allele.ordered))
                               
-        cloned_Ind = Individual2(new_chromo, deepcopy(self.fitness))
+        cloned_Ind = Individual(new_chromo, deepcopy(self.fitness))
         assert(cloned_Ind is not self)
         assert(cloned_Ind.fitness is not self.fitness)
         return cloned_Ind
@@ -829,7 +829,7 @@ class Individual2(list):
                 list_items.append(gene.val_str)
             else:
                 raise Exception("{}".format(gene.vtype))      
-        super(Individual2, self).__init__(list_items)
+        super(individual, self).__init__(list_items)
         
     
     def recreate_fitness(self):
@@ -887,10 +887,11 @@ class Individual2(list):
 
 
 #--- Evolution
-
-
 class Mapping(object):
     def __init__(self, design_space, objective_space):
+        """
+        """
+        
         self.design_space = design_space
         self.objective_space = objective_space
         logging.info(self)
@@ -900,24 +901,24 @@ class Mapping(object):
                                                                   self.objective_space.dimension)
     #---Assignment
     def assign_individual(self, Individual):
-        self.Individual = Individual
+        self.individual = Individual
         logging.info("This mapping will produce individuals of class {}".format(Individual.__name__))
 
     def assign_evaluator(self, life_cycle):
-        self.Individual.pre_process  = life_cycle['pre_process']
-        self.Individual.execute  = life_cycle['execute']
-        self.Individual.post_process  = life_cycle['post_process']
+        self.individual.pre_process  = life_cycle['pre_process']
+        self.individual.execute  = life_cycle['execute']
+        self.individual.post_process  = life_cycle['post_process']
         
         logging.info("Bound life cycle {}, {}, {} to {}".format(
                                                                 life_cycle['pre_process'],
                                                                 life_cycle['execute'],
                                                                 life_cycle['post_process'],
-                                                                self.Individual.__name__)
+                                                                self.individual.__name__)
                      )
 
-    def assign_fitness(self, Fitness):
-        self.fitness = Fitness
-        logging.info("This mapping will produce fitness of class {}".format(Fitness.__name__))
+    def assign_fitness(self, fitness):
+        self.fitness = fitness
+        logging.info("This mapping will produce fitness of class {}".format(fitness.__name__))
     
     #--- Generating points in the space
     def get_random_mapping(self, flg_verbose = False):
@@ -929,13 +930,13 @@ class Mapping(object):
             this_var = var.return_random_allele()
             chromosome.append(this_var)
 
-        this_ind = self.Individual(chromosome=chromosome, 
+        this_ind = self.individual(chromosome=chromosome, 
                                     fitness=self.fitness()
                                     )
         #this_ind = this_ind.init_life_cycle()
         
         if flg_verbose:
-            logging.debug("Creating a {} individual with chromosome {}".format(self.Individual, chromosome))        
+            logging.debug("Creating a {} individual with chromosome {}".format(self.individual, chromosome))        
             logging.debug("Returned random individual {}".format(this_ind))
         
         return this_ind

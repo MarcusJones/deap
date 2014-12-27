@@ -98,7 +98,7 @@ def nsga2(settings, algorithm, parameters, operators, mapping, session, Results)
                 fit= getattr(result, "obj_c_{}".format(name))
                 fit_vals.append(fit)
 
-            this_individual = ds.Individual2(this_chromosome,mapping.fitness())
+            this_individual = ds.individual(this_chromosome,mapping.fitness())
             this_individual.fitness.setValues(fit_vals)
             #print(this_individual)
             pop.append(this_individual)
